@@ -1,0 +1,154 @@
+# ══════════════════════════════════════════════════════════════
+# TECHCART — Docker Compose
+# Orchestrates all 4 services of the application
+#
+# Usage:
+#   Start all:    docker-compose up -d
+#   Stop all:     docker-compose down
+#   View logs:    docker-compose logs -f backend
+#   Rebuild:      docker-compose up -d --build
+# ══════════════════════════════════════════════════════════════
+
+version: '3.9'
+
+services:
+
+  # ────────────────────────────────────────────────────────────
+  # SERVICE 1 : POSTGRESQL
+  # Stores all structured product data
+  # (prices, stock, specs, categories)
+  # ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    
+    container_name: techcart_postgres
+    
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    
+    ports:
+      - "5432:5432"
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s   
+      timeout: 5s      
+      retries: 5     
+    
+    networks:
+      - techcart_network
+    
+    restart: unless-stopped
+
+  # ────────────────────────────────────────────────────────────
+  # SERVICE 2 : CHROMADB
+  # Stores vector embeddings for semantic search
+  # ────────────────────────────────────────────────────────────
+  chromadb:
+    image: chromadb/chroma:0.5.20
+    
+    container_name: techcart_chromadb
+    
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/data
+      ANONYMIZED_TELEMETRY: "FALSE"  
+    
+    volumes:
+      - ./data/vector_db:/chroma/data
+    
+    ports:
+      - "8001:8000"
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    networks:
+      - techcart_network
+    
+    restart: unless-stopped
+
+  # ────────────────────────────────────────────────────────────
+  # SERVICE 3 : OLLAMA
+  # Runs the LLM locally (Mistral 7B)
+  # ────────────────────────────────────────────────────────────
+  # ollama:
+  #   image: ollama/ollama:latest
+    
+  #   container_name: techcart_ollama
+    
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+    
+  #   ports:
+  #     - "11434:11434"
+    
+  #   networks:
+  #     - techcart_network
+    
+  #   restart: unless-stopped
+
+  # ────────────────────────────────────────────────────────────
+  # SERVICE 4 : BACKEND (FastAPI)
+  # Our main application
+  # ────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .                           
+      dockerfile: docker/Dockerfile.backend
+    
+    container_name: techcart_backend
+    
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000       
+      # OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_BASE_URL: http://llm-bench-ollama:11434
+    
+    env_file:
+      - .env   
+    
+    volumes:
+      - ./backend:/app/backend
+      - ./data:/app/data
+    
+    ports:
+      - "8000:8000"
+    
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+      # ollama:
+      #   condition: service_started
+    
+    networks:
+      - techcart_network
+      - llm-bench_llm-net
+    
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  
+  ollama_models:
+
+
+networks:
+  techcart_network:
+    driver: bridge
+
+  llm-bench_llm-net:
+    external: true
