@@ -49,7 +49,4 @@ EXPOSE 8000
 #   If we used 127.0.0.1, Docker couldn't route traffic to it
 # --reload : auto-restart on code changes (DEVELOPMENT ONLY)
 #   Remove --reload in production!
-CMD ["uvicorn", "backend.api.main:app", \
-    "--host", "0.0.0.0", \
-    "--port", "8000", \
-    "--reload"]
+CMD ["uvicorn","backend.api.main:app","--host","0.0.0.0","--port","8000","--reload"]
