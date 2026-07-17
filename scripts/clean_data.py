@@ -19,6 +19,7 @@ PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 
 GPU_CSV = RAW_DIR / "All_GPUs.csv"
 CPU_CSV = RAW_DIR / "Intel_CPUs.csv"
+GPU_PRICE_INDEX_CSV = RAW_DIR / "gpu_price_index.csv"
 GPU_OUTPUT = PROCESSED_DIR / "gpus.json"
 CPU_OUTPUT = PROCESSED_DIR / "cpus.json"
 
@@ -77,8 +78,6 @@ def parse_launch_quarter(value: Any) -> Optional[str]:
         return None
     match = re.match(r"Q(\d)'(\d{2})", text)
     if not match:
-        # Format inattendu : on garde la valeur brute plutôt que de
-        # silencieusement perdre l'information.
         return text
     quarter, year_suffix = match.groups()
     year = 2000 + int(year_suffix)
@@ -86,7 +85,6 @@ def parse_launch_quarter(value: Any) -> Optional[str]:
 
 
 def parse_yes_no(value: Any) -> Optional[bool]:
-    """Convertit 'Yes'/'No' en booléen Python. None si absent."""
     text = clean_str(value)
     if text is None:
         return None
@@ -96,7 +94,6 @@ def parse_yes_no(value: Any) -> Optional[bool]:
 def mb_string_to_gb(value: Any) -> Optional[float]:
     megabytes = extract_number(value)
     return round(megabytes / 1024, 3) if megabytes is not None else None
-
 
 def _deterministic_seed(identifier: str) -> int:
     digest = hashlib.sha256(identifier.encode("utf-8")).hexdigest()
@@ -124,6 +121,9 @@ def simulate_store_stock(seed_key: str) -> int:
     return rng.randint(1, 40)
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Nettoyage GPU
+# ─────────────────────────────────────────────────────────────────────
 
 def clean_gpus() -> list[dict]:
     if not GPU_CSV.exists():
@@ -164,10 +164,9 @@ def clean_gpus() -> list[dict]:
             "direct_x": clean_str(row["Direct_X"]),
             "open_gl": clean_str(row["Open_GL"]),
             "release_date": parse_release_date(row["Release_Date"]),
-            # Donnée RÉELLE du dataset (peut être null) — ne jamais
-            # confondre avec le champ simulé ci-dessous.
-            "release_price_usd": release_price,
-            # Donnée SIMULÉE pour les besoins de la démo e-commerce.
+            "reference_price_usd": release_price,
+            "price_source": "techpowerup_launch_msrp" if release_price else None,
+            "specs_available": True,
             "store_price_eur": simulate_store_price_eur(seed_key, release_price),
             "store_stock": simulate_store_stock(seed_key),
         })
@@ -179,6 +178,91 @@ def clean_gpus() -> list[dict]:
     return records
 
 
+# ─────────────────────────────────────────────────────────────────────
+# Nettoyage du fichier complémentaire "prix récents"
+# ─────────────────────────────────────────────────────────────────────
+def infer_gpu_manufacturer(name: str) -> str:
+    lowered = name.lower()
+    if lowered.startswith("geforce"):
+        return "Nvidia"
+    if lowered.startswith("radeon"):
+        return "AMD"
+    if lowered.startswith("intel"):
+        return "Intel"
+    return "Unknown"
+
+
+def extract_memory_gb_from_name(name: str) -> Optional[float]:
+    match = re.search(r"(\d+)\s*GB\b", name)
+    return float(match.group(1)) if match else None
+
+
+def clean_modern_gpu_prices() -> list[dict]:
+    if not GPU_PRICE_INDEX_CSV.exists():
+        logger.warning(
+            "Fichier de prix récents introuvable (%s) — étape ignorée, "
+            "seul le dataset TechPowerUp sera utilisé.",
+            GPU_PRICE_INDEX_CSV,
+        )
+        return []
+
+    df = pd.read_csv(GPU_PRICE_INDEX_CSV)
+    logger.info(
+        "GPU (prix récents) : %d lignes chargées depuis %s",
+        len(df), GPU_PRICE_INDEX_CSV.name,
+    )
+
+    records: list[dict] = []
+    for idx, row in df.iterrows():
+        name = clean_str(row["GPU Model"])
+        if not name:
+            continue
+
+        best_price = parse_price_usd(row["Best US Price"])
+        lowest_price = parse_price_usd(row["Lowest-Ever US Price"])
+        reference_price = best_price if best_price is not None else lowest_price
+        price_source = (
+            "tomshardware_current_price" if best_price is not None
+            else "tomshardware_lowest_ever_price" if lowest_price is not None
+            else None
+        )
+
+        manufacturer = infer_gpu_manufacturer(name)
+        seed_key = f"{manufacturer}|{name}"
+
+        records.append({
+            "id": f"gpu_price_{idx:03d}",
+            "category": "gpu",
+            "name": name,
+            "manufacturer": manufacturer,
+            "architecture": None,
+            "is_notebook_gpu": False,
+            "core_clock_mhz": None,
+            "boost_clock_mhz": None,
+            "memory_gb": extract_memory_gb_from_name(name),
+            "memory_type": None,
+            "memory_bus_bit": None,
+            "memory_bandwidth_gb_s": None,
+            "process_nm": None,
+            "max_power_watts": None,
+            "best_resolution": None,
+            "direct_x": None,
+            "open_gl": None,
+            "release_date": None,
+            "reference_price_usd": reference_price,
+            "price_source": price_source,
+            "specs_available": False,
+            "store_price_eur": simulate_store_price_eur(seed_key, reference_price),
+            "store_stock": simulate_store_stock(seed_key),
+        })
+
+    logger.info("GPU (prix récents) : %d fiches nettoyées", len(records))
+    return records
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Nettoyage CPU
+# ─────────────────────────────────────────────────────────────────────
 
 def clean_cpus() -> list[dict]:
     if not CPU_CSV.exists():
@@ -193,8 +277,6 @@ def clean_cpus() -> list[dict]:
     for idx, row in df.iterrows():
         processor_number = clean_str(row["Processor_Number"])
         collection = clean_str(row["Product_Collection"])
-        # Certaines lignes n'ont pas de Processor_Number (références
-        # "legacy") : on retombe sur la collection comme nom lisible.
         name = f"Intel {processor_number}" if processor_number else collection
         if not name:
             skipped += 1
@@ -209,7 +291,7 @@ def clean_cpus() -> list[dict]:
             "name": name,
             "processor_number": processor_number,
             "product_collection": collection,
-            "vertical_segment": clean_str(row["Vertical_Segment"]),  # Desktop / Mobile / Server / Embedded
+            "vertical_segment": clean_str(row["Vertical_Segment"]),  
             "status": clean_str(row["Status"]),
             "cores": extract_number(row["nb_of_Cores"], as_int=True),
             "threads": extract_number(row["nb_of_Threads"], as_int=True),
@@ -231,6 +313,7 @@ def clean_cpus() -> list[dict]:
     return records
 
 
+
 def write_json(records: list[dict], output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as f:
@@ -241,14 +324,28 @@ def write_json(records: list[dict], output_path: Path) -> None:
 def main() -> None:
     logger.info("=== TechCart · Étape 1 : Nettoyage des données ===")
 
-    gpus = clean_gpus()
+    gpus_specs = clean_gpus()
+    gpus_modern = clean_modern_gpu_prices()
+
+    specs_names = {g["name"].lower() for g in gpus_specs}
+    collisions = [g["name"] for g in gpus_modern if g["name"].lower() in specs_names]
+    if collisions:
+        logger.warning(
+            "%d produits présents dans les deux sources GPU (doublons "
+            "potentiels, non dédupliqués) : %s",
+            len(collisions), collisions,
+        )
+
+    gpus = gpus_specs + gpus_modern
     write_json(gpus, GPU_OUTPUT)
 
     cpus = clean_cpus()
     write_json(cpus, CPU_OUTPUT)
-
     logger.info("--- Résumé ---")
-    logger.info("GPU  : %d fiches -> %s", len(gpus), GPU_OUTPUT)
+    logger.info(
+        "GPU  : %d fiches (%d avec specs complètes + %d prix récents seuls) -> %s",
+        len(gpus), len(gpus_specs), len(gpus_modern), GPU_OUTPUT,
+    )
     logger.info("CPU  : %d fiches -> %s", len(cpus), CPU_OUTPUT)
     logger.info("=== Terminé ===")
 
