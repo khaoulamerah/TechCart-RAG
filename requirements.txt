@@ -1,13 +1,10 @@
-
 fastapi[all]==0.115.0
 uvicorn[standard]==0.30.6
-# ── DATABASE — SQL ─────────────────
-sqlalchemy[asyncio]==2.0.36
-asyncpg==0.29.0
-psycopg2-binary==2.9.10
-alembic==1.14.0
+# ── DATABASE — MONGODB ──────────────────
+motor==3.6.0
+pymongo==4.9.2
 # ── DATABASE — VECTOR ──────────────────
-chromadb==0.5.20
+qdrant-client==1.12.1
 # ── EMBEDDINGS ──────────────────────────
 sentence-transformers==3.3.1
 torch==2.5.1
@@ -31,9 +28,13 @@ pytest==8.3.4
 pytest-asyncio==0.24.0
 
 
-# ── DEVELOPMENT TOOLS ─────────────────────────────────────────
-# These are only needed during development, not in production
-# In a real project, these go in requirements-dev.txt
+# ── DEVELOPMENT TOOLS ─────────────────────────────────
 ipykernel==6.29.5
 matplotlib==3.9.3
 seaborn==0.13.2
+
+# ── DISABLED — SQL  ─────────
+# sqlalchemy[asyncio]==2.0.36
+# asyncpg==0.29.0
+# psycopg2-binary==2.9.10
+# alembic==1.14.0

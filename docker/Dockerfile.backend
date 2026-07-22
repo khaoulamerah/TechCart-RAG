@@ -1,10 +1,8 @@
-
 FROM python:3.11-slim
 
 # ── METADATA ────────────────────
 LABEL maintainer="TechCart"
 LABEL description="TechCart RAG Backend - FastAPI"
-
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -15,38 +13,24 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # ── SYSTEM DEPENDENCIES ───────────────────────────────────────
-# curl: needed for health checks
-# build-essential: needed to compile some Python packages
-# libpq-dev: needed for psycopg2 (PostgreSQL driver)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     build-essential \
-    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
-# Clean up apt cache to reduce image size
 
 # ── PYTHON DEPENDENCIES ───────────────────────────────────────
-# COPY requirements FIRST (before code)
-# WHY? Docker layer caching:
-# If requirements.txt doesn't change → pip install is cached
-# If only code changes → requirements layer is reused (fast!)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ── APPLICATION CODE ──────────────────────────────────────────
-# Copy application code AFTER pip install
-# (code changes more frequently than dependencies)
 COPY backend/ ./backend/
 COPY data/ ./data/
 
 # ── PORT ──────────────────────────────────────────────────────
 EXPOSE 8000
 
-# ── STARTUP COMMAND ───────────────────────────────────────────
-# uvicorn: ASGI server for FastAPI
-# backend.api.main:app → file: backend/api/main.py, variable: app
-# --host 0.0.0.0 : listen on ALL interfaces (required in Docker)
-#   If we used 127.0.0.1, Docker couldn't route traffic to it
-# --reload : auto-restart on code changes (DEVELOPMENT ONLY)
-#   Remove --reload in production!
-CMD ["uvicorn","backend.api.main:app","--host","0.0.0.0","--port","8000","--reload"]
+# ── HEALTHCHECK ─────────────────────────────────────────────
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=15s \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
