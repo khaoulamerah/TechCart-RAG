@@ -47,4 +47,4 @@ async def create_indexes() -> None:
 def get_database() -> AsyncIOMotorDatabase:
     if mongodb.db is None:
         raise RuntimeError("MongoDB has not been initialized. Did startup run?")
-    return mongodb.dbc
+    return mongodb.db

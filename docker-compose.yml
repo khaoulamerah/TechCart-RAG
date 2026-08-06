@@ -3,9 +3,8 @@
 #   Stop all:     docker compose down
 #   View logs:    docker compose logs -f backend
 #   Rebuild:      docker compose up -d --build
-
-
-version: "3.9"
+#   Pull a model: docker compose exec ollama ollama pull mistral
+# ══════════════════════════════════════════════════════════════
 
 services:
 
@@ -74,9 +73,34 @@ services:
       - techcart_network
 
   # ────────────────────────────────────────────────────────────
-  # SERVICE 3 : BACKEND (FastAPI)
-  # Calls Ollama on the Windows host via host.docker.internal —
-  # Ollama itself is NOT a service here anymore.
+  # SERVICE 3 : OLLAMA
+  # ────────────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+
+    container_name: techcart_ollama
+
+    volumes:
+      - ollama_models:/root/.ollama
+
+    ports:
+      - "11434:11434"
+
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    restart: unless-stopped
+
+
+    networks:
+      - techcart_network
+
+  # ────────────────────────────────────────────────────────────
+  # SERVICE 4 : BACKEND (FastAPI)
   # ────────────────────────────────────────────────────────────
   backend:
     build:
@@ -92,7 +116,7 @@ services:
       QDRANT_PORT: 6333
       QDRANT_GRPC_PORT: 6334
       QDRANT_COLLECTION: techcart_products
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_BASE_URL: http://ollama:11434
 
     env_file:
       - .env
@@ -109,9 +133,8 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
-
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      ollama:
+        condition: service_healthy
 
     restart: unless-stopped
 
@@ -119,7 +142,7 @@ services:
       - techcart_network
 
   # ────────────────────────────────────────────────────────────
-  # SERVICE 4 : FRONTEND (NGINX)
+  # SERVICE 5 : FRONTEND (NGINX)
   # Serves HTML, CSS and JavaScript
   # ────────────────────────────────────────────────────────────
   frontend:
@@ -165,10 +188,9 @@ services:
   #   networks:
   #     - techcart_network
 
-
-
 volumes:
   mongodb_data:
+  ollama_models:
   # postgres_data:
 
 networks:

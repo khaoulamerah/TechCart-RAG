@@ -121,7 +121,7 @@ class ConversationRepository:
             return None
 
         result = await self.collection.update_one(
-            {"_id": oid},
+            {"_id": oid, "messages.message_id": message_id},
             {
                 "$pull": {"messages": {"message_id": message_id}},
                 "$set": {"updated_at": utcnow()},
