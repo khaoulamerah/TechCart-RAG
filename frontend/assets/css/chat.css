@@ -1,15 +1,3 @@
-/**
- * chat.css
- * ─────────────────────────────────────────────────────────
- * Rôle : tout ce qui concerne la conversation elle-même — fil de
- * messages, bulles, avatars, indicateur de saisie, barre d'envoi.
- *
- * Élément signature : chaque ligne de message relie son avatar à sa
- * bulle par une fine "trace" verticale façon circuit imprimé, avec
- * un petit point de "soudure" à la jonction. C'est le seul détail
- * décoratif volontairement appuyé de l'interface — tout le reste
- * reste sobre pour ne pas nuire à la lisibilité de la conversation.
- */
 
 .chat-container {
   flex: 1;
@@ -52,6 +40,20 @@
   animation: message-in 0.25s ease both;
 }
 
+/* Vos propres messages passent à droite, comme dans les apps de
+   chat classiques (WhatsApp, ChatGPT...) — seuls ceux de
+   l'assistant restent alignés à gauche. */
+.message-row--user {
+  flex-direction: row-reverse;
+  align-self: flex-end;
+  max-width: 80%;
+}
+
+.message-row--user .bubble-wrap {
+  align-items: flex-end;
+  text-align: right;
+}
+
 @keyframes message-in {
   from {
     opacity: 0;
@@ -78,7 +80,8 @@
   display: block;
 }
 
-/* La "trace" reliant l'avatar à la bulle — signature visuelle */
+/* La "trace" reliant l'avatar à la bulle — signature visuelle.
+   Ancrée à gauche par défaut (lignes assistant). */
 .message-row::before {
   content: "";
   position: absolute;
@@ -88,6 +91,12 @@
   height: calc(100% - 32px);
   background: linear-gradient(var(--border), transparent);
   opacity: 0.7;
+}
+
+/* Miroir à droite pour les lignes utilisateur, qui sont inversées. */
+.message-row--user::before {
+  left: auto;
+  right: 16px;
 }
 
 .message-row:last-child::before {
@@ -120,7 +129,8 @@
 .bubble--user {
   background: var(--accent-cyan);
   color: var(--text-on-accent);
-  border-top-left-radius: 3px;
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: 3px;
   font-weight: 500;
 }
 

@@ -1,11 +1,10 @@
-
 const TechCartAPI = (() => {
   /**
-   * @param {string} message 
-   * @param {string|null} sessionId 
-   * @param {string|null} conversationId 
+   * @param {string} message - le message envoyé par l'utilisateur
+   * @param {string|null} sessionId - session invité à continuer, ou null pour en créer une
+   * @param {string|null} conversationId - conversation MongoDB à continuer, ou null pour en créer une
    * @returns {Promise<{reply: string, conversationId: string, sessionId: string}>}
-   * @throws {APIError} 
+   * @throws {APIError} en cas d'échec réseau, timeout ou erreur serveur
    */
   async function sendMessage(message, sessionId = null, conversationId = null) {
     const controller = new AbortController();
@@ -41,7 +40,6 @@ const TechCartAPI = (() => {
           const errBody = await response.json();
           detail = errBody.detail || detail;
         } catch (_) {
-       
         }
         throw new APIError(
           `Le serveur a répondu avec le statut ${status}`,
@@ -78,7 +76,33 @@ const TechCartAPI = (() => {
     }
   }
 
-  return { sendMessage };
+  /**
+   * @param {string} conversationId - le VRAI conversation_id backend (pas l'ID local sidebar)
+   * @throws {APIError} si le serveur refuse ou est injoignable
+   */
+  async function deleteConversation(conversationId) {
+    const response = await fetch(
+      `${CONFIG.API_BASE_URL}${CONFIG.CHAT_ENDPOINT}/conversations/${conversationId}`,
+      { method: "DELETE" }
+    );
+
+    if (!response.ok) {
+      let detail = "Erreur inconnue.";
+      try {
+        const errBody = await response.json();
+        detail = errBody.detail || detail;
+      } catch (_) {
+        /* pas de corps JSON, on garde le message par défaut */
+      }
+      throw new APIError(
+        `Le serveur a répondu avec le statut ${response.status}`,
+        response.status,
+        detail
+      );
+    }
+  }
+
+  return { sendMessage, deleteConversation };
 })();
 
 
@@ -86,7 +110,7 @@ class APIError extends Error {
   constructor(message, statusCode, kind) {
     super(message);
     this.name = "APIError";
-    this.statusCode = statusCode; 
-    this.kind = kind; 
+    this.statusCode = statusCode; // 0 = pas de réponse HTTP du tout
+    this.kind = kind; // "network" | "timeout" | "server" | undefined
   }
 }

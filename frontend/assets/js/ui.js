@@ -1,4 +1,3 @@
-
 const TechCartUI = (() => {
   const dom = {
     messages: document.getElementById("chat-messages"),
@@ -150,23 +149,128 @@ const TechCartUI = (() => {
     }
   }
 
-  /** Recalcule la hauteur du textarea au fil de la saisie (auto-grow). */
   function autoGrowInput() {
     dom.input.style.height = "auto";
     dom.input.style.height = Math.min(dom.input.scrollHeight, 160) + "px";
   }
 
-  function renderHistoryList(conversations, activeId, onSelect) {
+  /**
+   * @param {Array} conversations
+   * @param {string} activeId
+   * @param {{onSelect: Function, onRename: Function, onDelete: Function}} handlers
+   */
+  function renderHistoryList(conversations, activeId, handlers) {
+    const { onSelect, onRename, onDelete } = handlers;
     dom.historyList.innerHTML = "";
+
     conversations.forEach((conv) => {
-      const item = document.createElement("button");
+      const item = document.createElement("div");
       item.className =
         "history-item" + (conv.id === activeId ? " history-item--active" : "");
-      item.type = "button";
-      item.textContent = conv.title || "Nouvelle conversation";
-      item.addEventListener("click", () => onSelect(conv.id));
+
+      const titleBtn = document.createElement("button");
+      titleBtn.type = "button";
+      titleBtn.className = "history-item-title";
+      titleBtn.textContent = conv.title || "Nouvelle conversation";
+      titleBtn.addEventListener("click", () => onSelect(conv.id));
+
+      const menuBtn = document.createElement("button");
+      menuBtn.type = "button";
+      menuBtn.className = "history-item-menu-btn";
+      menuBtn.setAttribute("aria-label", "Options de la conversation");
+      menuBtn.innerHTML = kebabIconSVG();
+
+      const dropdown = document.createElement("div");
+      dropdown.className = "history-item-dropdown";
+      dropdown.hidden = true;
+
+      const renameBtn = document.createElement("button");
+      renameBtn.type = "button";
+      renameBtn.textContent = "Renommer";
+      renameBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        closeAllDropdowns();
+        beginRename(item, titleBtn, conv, onRename);
+      });
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "history-item-dropdown-btn--danger";
+      deleteBtn.textContent = "Supprimer";
+      deleteBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        closeAllDropdowns();
+        onDelete(conv.id);
+      });
+
+      dropdown.appendChild(renameBtn);
+      dropdown.appendChild(deleteBtn);
+
+      menuBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const wasOpen = !dropdown.hidden;
+        closeAllDropdowns();
+        dropdown.hidden = wasOpen;
+      });
+
+      item.appendChild(titleBtn);
+      item.appendChild(menuBtn);
+      item.appendChild(dropdown);
       dom.historyList.appendChild(item);
     });
+  }
+
+  function closeAllDropdowns() {
+    document
+      .querySelectorAll(".history-item-dropdown")
+      .forEach((dropdown) => (dropdown.hidden = true));
+  }
+  document.addEventListener("click", closeAllDropdowns);
+
+  /** Remplace le titre par un champ éditable, façon ChatGPT. */
+  function beginRename(item, titleBtn, conv, onRename) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "history-item-rename-input";
+    input.value = conv.title || "";
+    input.maxLength = 60;
+
+    titleBtn.replaceWith(input);
+    input.focus();
+    input.select();
+
+    let settled = false;
+    function commit() {
+      if (settled) return;
+      settled = true;
+      const newTitle = input.value.trim() || "Nouvelle conversation";
+      onRename(conv.id, newTitle); // re-render complet de la liste ensuite
+    }
+    function cancel() {
+      if (settled) return;
+      settled = true;
+      input.replaceWith(titleBtn);
+    }
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        cancel();
+      }
+    });
+    input.addEventListener("blur", commit);
+    input.addEventListener("click", (event) => event.stopPropagation());
+  }
+
+  function kebabIconSVG() {
+    return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+      <circle cx="12" cy="5" r="1.6" fill="currentColor"/>
+      <circle cx="12" cy="12" r="1.6" fill="currentColor"/>
+      <circle cx="12" cy="19" r="1.6" fill="currentColor"/>
+    </svg>`;
   }
 
   function applyTheme(theme) {

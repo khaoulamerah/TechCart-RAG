@@ -1,14 +1,3 @@
-/**
- * style.css
- * ─────────────────────────────────────────────────────────
- * Rôle : fondations visuelles — variables de design (tokens),
- * reset, typographie, layout général (sidebar + zone principale).
- *
- * Identité visuelle : "atelier électronique" — TechCart vend des
- * composants PC, donc l'interface emprunte au vocabulaire du
- * matériel : circuits imprimés, puces, traces de soudure. C'est ce
- * qui structure la palette et les micro-détails (voir chat.css).
- */
 
 /* ─── Design tokens ────────────────────────────────────────── */
 :root,
@@ -183,14 +172,12 @@ input:focus-visible {
 }
 
 .history-item {
-  text-align: left;
-  padding: 9px 10px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 2px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -203,6 +190,100 @@ input:focus-visible {
   background: var(--bg-elevated);
   color: var(--text-primary);
   box-shadow: inset 2px 0 0 var(--accent-cyan);
+}
+
+.history-item-title {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 7px 6px;
+  font-size: 13px;
+  color: inherit;
+  background: none;
+  border: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.history-item-menu-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.1s ease, background 0.15s ease, color 0.15s ease;
+}
+
+/* Le bouton "..." n'apparaît qu'au survol de la ligne (ou si son
+   menu est déjà ouvert), pour ne pas surcharger la sidebar. */
+.history-item:hover .history-item-menu-btn,
+.history-item-menu-btn:focus-visible {
+  opacity: 1;
+}
+
+.history-item-menu-btn:hover {
+  background: var(--bg-elevated-hover);
+  color: var(--text-primary);
+}
+
+.history-item-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 4px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.history-item-dropdown button {
+  text-align: left;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.history-item-dropdown button:hover {
+  background: var(--bg-elevated-hover);
+}
+
+.history-item-dropdown-btn--danger {
+  color: #ef4444;
+}
+
+.history-item-dropdown-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.history-item-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-cyan);
+  border-radius: var(--radius-sm);
+  outline: none;
 }
 
 .sidebar-footer {

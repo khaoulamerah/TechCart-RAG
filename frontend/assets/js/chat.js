@@ -1,10 +1,10 @@
 
 const TechCartChat = (() => {
   const state = {
-    conversationId: null,       // local ID, only used as a localStorage key for the sidebar
-    backendConversationId: null, // real MongoDB _id, returned by the backend
-    sessionId: null,             // guest session_id, returned by the backend and reused
-    messages: [], // { role: "user"|"assistant", content: string }
+    conversationId: null,      
+    backendConversationId: null, 
+    sessionId: null,            
+    messages: [], 
     isSending: false,
   };
 
@@ -17,9 +17,6 @@ const TechCartChat = (() => {
       const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch (_) {
-      // localStorage corrompu ou indisponible (mode navigation privée
-      // stricte sur certains navigateurs) : on repart d'une liste vide
-      // plutôt que de faire planter l'application.
       return [];
     }
   }
@@ -53,8 +50,6 @@ const TechCartChat = (() => {
     try {
       localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(conversations));
     } catch (_) {
-      /* quota dépassé ou navigation privée : on ignore silencieusement,
-         l'app reste fonctionnelle, seul l'historique n'est pas sauvegardé */
     }
     renderSidebarHistory();
   }
@@ -63,11 +58,58 @@ const TechCartChat = (() => {
     const conversations = loadConversations().sort(
       (a, b) => b.updatedAt - a.updatedAt
     );
-    TechCartUI.renderHistoryList(
-      conversations,
-      state.conversationId,
-      openConversation
-    );
+    TechCartUI.renderHistoryList(conversations, state.conversationId, {
+      onSelect: openConversation,
+      onRename: renameConversation,
+      onDelete: deleteConversationById,
+    });
+  }
+
+  /** Renomme une conversation (stockage local uniquement — le titre
+   *  n'a pas de contrepartie côté backend dans le Task 2). */
+  function renameConversation(id, newTitle) {
+    const conversations = loadConversations();
+    const index = conversations.findIndex((c) => c.id === id);
+    if (index === -1) return;
+
+    conversations[index].title = newTitle;
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(conversations));
+    } catch (_) {
+      /* quota dépassé ou navigation privée : on ignore silencieusement */
+    }
+    renderSidebarHistory();
+  }
+
+  async function deleteConversationById(id) {
+    const conversations = loadConversations();
+    const conv = conversations.find((c) => c.id === id);
+    if (!conv) return;
+
+    if (conv.backendConversationId) {
+      try {
+        await TechCartAPI.deleteConversation(conv.backendConversationId);
+      } catch (_) {
+      }
+    }
+
+    const remaining = conversations.filter((c) => c.id !== id);
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(remaining));
+    } catch (_) {
+      /* idem */
+    }
+
+    if (state.conversationId === id) {
+      const next = remaining.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      if (next) {
+        openConversation(next.id);
+      } else {
+        startNewConversation();
+      }
+    } else {
+      renderSidebarHistory();
+    }
   }
 
   function openConversation(id) {
@@ -113,22 +155,15 @@ const TechCartChat = (() => {
     const thinkingRow = TechCartUI.showThinkingIndicator();
 
     try {
-      // Étape 4 — on envoie les VRAIS identifiants backend (session_id /
-      // backendConversationId), pas l'ID local utilisé pour la sidebar.
       const { reply, conversationId, sessionId } = await TechCartAPI.sendMessage(
         text,
         state.sessionId,
         state.backendConversationId
       );
 
-      // Le backend fait autorité : on mémorise ce qu'il renvoie pour
-      // que le prochain message de cette conversation continue le
-      // même fil côté Mongo (get_or_create_by_session).
       state.backendConversationId = conversationId;
       state.sessionId = sessionId;
 
-      // Étape 5 — on retire l'indicateur et on crée une vraie bulle
-      // de réponse dans laquelle on "tape" le texte.
       thinkingRow.remove();
       const bubble = TechCartUI.renderMessage("assistant", "");
       await TechCartUI.typeInto(bubble, reply || "Je n'ai pas de réponse à vous proposer pour le moment.");
@@ -136,7 +171,6 @@ const TechCartChat = (() => {
       state.messages.push({ role: "assistant", content: reply });
       persistCurrentConversation();
     } catch (error) {
-      // Étape 6 — gestion différenciée des erreurs réseau.
       thinkingRow.remove();
       TechCartUI.renderErrorMessage(errorToUserMessage(error));
     } finally {
