@@ -1,23 +1,9 @@
-/**
- * chat.js
- * ─────────────────────────────────────────────────────────
- * Rôle : le "cerveau" du frontend. Il ne touche jamais directement
- * au DOM (c'est le rôle de ui.js) ni au réseau (c'est le rôle de
- * api.js). Il ORCHESTRE les deux et gère l'ÉTAT de la conversation.
- *
- * Pourquoi séparer l'état ici ?
- * → C'est le même principe qu'un store Redux/Pinia, mais fait à la
- *   main : une seule fonction (sendUserMessage) décrit tout le
- *   cycle de vie d'un message, ce qui rend le flux facile à suivre
- *   et à déboguer.
- * → En gardant l'état en mémoire (`state`) plutôt que dispersé dans
- *   le DOM, on peut le sérialiser tel quel dans localStorage pour
- *   l'historique des conversations.
- */
 
 const TechCartChat = (() => {
   const state = {
-    conversationId: null,
+    conversationId: null,       // local ID, only used as a localStorage key for the sidebar
+    backendConversationId: null, // real MongoDB _id, returned by the backend
+    sessionId: null,             // guest session_id, returned by the backend and reused
     messages: [], // { role: "user"|"assistant", content: string }
     isSending: false,
   };
@@ -51,6 +37,8 @@ const TechCartChat = (() => {
     );
     const record = {
       id: state.conversationId,
+      backendConversationId: state.backendConversationId,
+      sessionId: state.sessionId,
       title,
       messages: state.messages,
       updatedAt: Date.now(),
@@ -88,6 +76,8 @@ const TechCartChat = (() => {
     if (!conv) return;
 
     state.conversationId = conv.id;
+    state.backendConversationId = conv.backendConversationId ?? null;
+    state.sessionId = conv.sessionId ?? null;
     state.messages = conv.messages;
 
     TechCartUI.clearMessages();
@@ -98,6 +88,8 @@ const TechCartChat = (() => {
 
   function startNewConversation() {
     state.conversationId = generateId();
+    state.backendConversationId = null;
+    state.sessionId = null;
     state.messages = [];
     TechCartUI.clearMessages();
     TechCartUI.renderMessage("assistant", CONFIG.WELCOME_MESSAGE);
@@ -105,15 +97,7 @@ const TechCartChat = (() => {
     renderSidebarHistory();
   }
 
-  /**
-   * Cycle de vie complet de l'envoi d'un message :
-   * 1. Valider la saisie
-   * 2. Afficher le message utilisateur immédiatement (optimistic UI)
-   * 3. Afficher l'indicateur "réflexion"
-   * 4. Appeler le backend
-   * 5. Remplacer l'indicateur par la réponse (avec effet machine à écrire)
-   * 6. Gérer les erreurs à chaque étape critique
-   */
+
   async function sendUserMessage(rawText) {
     const text = rawText.trim();
     if (!text || state.isSending) return;
@@ -121,9 +105,6 @@ const TechCartChat = (() => {
     state.isSending = true;
     TechCartUI.setSendingState(true);
 
-    // Étape 2 — affichage immédiat du message utilisateur.
-    // On n'attend pas la réponse du serveur pour l'afficher : c'est
-    // ce qu'on appelle une "optimistic UI", ça rend l'app plus réactive.
     TechCartUI.renderMessage("user", text);
     state.messages.push({ role: "user", content: text });
     TechCartUI.clearInput();
@@ -132,19 +113,27 @@ const TechCartChat = (() => {
     const thinkingRow = TechCartUI.showThinkingIndicator();
 
     try {
-      // Étape 4
-      const { answer } = await TechCartAPI.sendMessage(
+      // Étape 4 — on envoie les VRAIS identifiants backend (session_id /
+      // backendConversationId), pas l'ID local utilisé pour la sidebar.
+      const { reply, conversationId, sessionId } = await TechCartAPI.sendMessage(
         text,
-        state.conversationId
+        state.sessionId,
+        state.backendConversationId
       );
+
+      // Le backend fait autorité : on mémorise ce qu'il renvoie pour
+      // que le prochain message de cette conversation continue le
+      // même fil côté Mongo (get_or_create_by_session).
+      state.backendConversationId = conversationId;
+      state.sessionId = sessionId;
 
       // Étape 5 — on retire l'indicateur et on crée une vraie bulle
       // de réponse dans laquelle on "tape" le texte.
       thinkingRow.remove();
       const bubble = TechCartUI.renderMessage("assistant", "");
-      await TechCartUI.typeInto(bubble, answer || "Je n'ai pas de réponse à vous proposer pour le moment.");
+      await TechCartUI.typeInto(bubble, reply || "Je n'ai pas de réponse à vous proposer pour le moment.");
 
-      state.messages.push({ role: "assistant", content: answer });
+      state.messages.push({ role: "assistant", content: reply });
       persistCurrentConversation();
     } catch (error) {
       // Étape 6 — gestion différenciée des erreurs réseau.

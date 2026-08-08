@@ -68,6 +68,19 @@ class ConversationService:
             )
         return serialize_conversation(doc)
 
+    async def get_or_create_by_session(self, session_id: str) -> dict[str, Any]:
+        """
+        Used by the Chat Service: returns the guest's existing
+        conversation for this session, or silently creates one.
+        Never raises 404 — that's the point of "get or create".
+        """
+        doc = await self.repository.get_by_session_id(session_id)
+        if doc is not None:
+            return serialize_conversation(doc)
+        return await self.create_conversation(
+            {"session_id": session_id, "is_guest": True}
+        )
+
     async def list_conversations(self, skip: int, limit: int) -> dict[str, Any]:
         if skip < 0 or limit <= 0 or limit > 100:
             raise HTTPException(

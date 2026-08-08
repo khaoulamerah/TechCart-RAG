@@ -1,26 +1,5 @@
-/**
- * ui.js
- * ─────────────────────────────────────────────────────────
- * Rôle : c'est la SEULE couche qui touche au DOM (querySelector,
- * innerHTML, création d'éléments, animations CSS...).
- *
- * Pourquoi isoler ça ?
- * → chat.js décide QUOI afficher (logique), ui.js décide COMMENT
- *   l'afficher (présentation). Ça permet, par exemple, de changer
- *   complètement le design des bulles de message sans jamais
- *   toucher à la logique de conversation.
- * → Chaque fonction ici est une brique réutilisable et testable
- *   indépendamment.
- *
- * Convention : toute fonction qui LIT le DOM commence par `get`,
- * toute fonction qui ÉCRIT dans le DOM commence par `render`,
- * `add`, `show` ou `set`.
- */
 
 const TechCartUI = (() => {
-  // Cache des éléments du DOM interrogés souvent, pour éviter de
-  // refaire un querySelector à chaque appel (micro-optimisation,
-  // mais aussi plus lisible).
   const dom = {
     messages: document.getElementById("chat-messages"),
     form: document.getElementById("chat-form"),
@@ -34,24 +13,12 @@ const TechCartUI = (() => {
     scrollAnchor: document.getElementById("scroll-anchor"),
   };
 
-  /**
-   * Échappe le HTML pour empêcher toute injection de balises via
-   * une question utilisateur ou une réponse du LLM.
-   * Règle d'or sécurité : on n'injecte JAMAIS du texte dynamique
-   * avec innerHTML sans l'avoir échappé au préalable.
-   */
   function escapeHTML(str) {
     const div = document.createElement("div");
     div.textContent = str;
     return div.innerHTML;
   }
 
-  /**
-   * Convertit un minimum de markdown (gras, listes, retours à la
-   * ligne) en HTML. Le LLM a tendance à répondre avec du markdown
-   * (ex: "**RTX 3080**"), donc on le rend lisible sans dépendre
-   * d'une librairie externe (cahier des charges : pas de frameworks).
-   */
   function lightMarkdownToHTML(text) {
     let safe = escapeHTML(text);
     safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -60,10 +27,6 @@ const TechCartUI = (() => {
   }
 
   /**
-   * Crée le squelette DOM d'une ligne de message (avatar + bulle)
-   * mais NE remplit PAS encore le texte — utile pour l'effet
-   * machine à écrire, où le texte arrive progressivement.
-   *
    * @param {"user"|"assistant"} role
    * @returns {{row: HTMLElement, bubble: HTMLElement}}
    */
@@ -92,10 +55,6 @@ const TechCartUI = (() => {
     return { row, bubble };
   }
 
-  /**
-   * Affiche un message complet d'un coup (pas d'effet typing).
-   * Utilisé pour les messages utilisateur et le message d'accueil.
-   */
   function renderMessage(role, text) {
     const { bubble } = createMessageSkeleton(role);
     bubble.innerHTML = lightMarkdownToHTML(text);
@@ -103,9 +62,7 @@ const TechCartUI = (() => {
   }
 
   /**
-   * Affiche les 3 points animés ("l'assistant tape...") pendant
-   * qu'on attend la réponse du backend.
-   * @returns {HTMLElement} l'élément à retirer une fois la réponse prête
+   * @returns {HTMLElement} 
    */
   function showThinkingIndicator() {
     const { row, bubble } = createMessageSkeleton("assistant");
@@ -118,11 +75,9 @@ const TechCartUI = (() => {
   }
 
   /**
-   * Révèle un texte progressivement dans une bulle déjà créée,
-   * pour simuler l'effet "streaming" façon ChatGPT.
    * @param {HTMLElement} bubble
    * @param {string} fullText
-   * @returns {Promise<void>} résolue quand tout le texte est affiché
+   * @returns {Promise<void>} 
    */
   function typeInto(bubble, fullText) {
     return new Promise((resolve) => {
@@ -149,7 +104,6 @@ const TechCartUI = (() => {
     });
   }
 
-  /** Affiche un bandeau d'erreur inline dans le fil de discussion. */
   function renderErrorMessage(message) {
     const row = document.createElement("div");
     row.className = "message-row message-row--error";

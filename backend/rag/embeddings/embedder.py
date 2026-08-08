@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import asyncio
@@ -11,10 +10,10 @@ logger = logging.getLogger("techcart.embedder")
 
 
 class EmbeddingError(Exception):
+    """Raised when Ollama embedding generation fails after retries."""
 
 
-
- class OllamaEmbedder:
+class OllamaEmbedder:
 
 
     def __init__(

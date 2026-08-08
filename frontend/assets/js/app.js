@@ -1,20 +1,4 @@
-/**
- * app.js
- * ─────────────────────────────────────────────────────────
- * Rôle : le point d'entrée de l'application. C'est le SEUL fichier
- * qui attache des écouteurs d'événements aux éléments du DOM
- * (submit, click, input, keydown...).
- *
- * Pourquoi un point d'entrée unique ?
- * → Si tu ouvres ce fichier dans 6 mois, tu vois d'un coup d'œil
- *   TOUT ce qui déclenche une action dans l'app, sans avoir à
- *   fouiller dans chat.js ou ui.js. C'est la "table des matières"
- *   comportementale de l'application.
- * → Ordre de chargement obligatoire dans index.html :
- *   config.js → api.js → ui.js → chat.js → app.js
- *   (chaque fichier dépend des précédents via les objets globaux
- *   CONFIG, TechCartAPI, TechCartUI, TechCartChat).
- */
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const dom = TechCartUI.dom;
@@ -56,8 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("techcart_theme", next);
   });
 
-  // Restaure le thème choisi précédemment (par défaut : dark, cohérent
-  // avec l'identité visuelle "atelier électronique" de TechCart).
   const savedTheme = localStorage.getItem("techcart_theme") || "dark";
   TechCartUI.applyTheme(savedTheme);
 
