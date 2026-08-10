@@ -3,9 +3,8 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 
+from backend.rag.generator.base import LLMProvider, LLMProviderError
 from backend.services.conversation import ConversationService
-
-FIXED_ASSISTANT_REPLY = "this is just a testing message of devlopment"
 
 
 def utcnow() -> datetime:
@@ -13,8 +12,13 @@ def utcnow() -> datetime:
 
 
 class ChatService:
-    def __init__(self, conversation_service: ConversationService):
+    def __init__(
+        self,
+        conversation_service: ConversationService,
+        llm_provider: LLMProvider,
+    ):
         self.conversation_service = conversation_service
+        self.llm_provider = llm_provider
 
     async def send_message(
         self,
@@ -32,8 +36,6 @@ class ChatService:
 
         # ── Resolve the conversation ─────────────────────
         if conversation_id:
-            # Explicit conversation_id: must exist, or it's a 404 —
-            # this is what "invalid conversation ID" validation means.
             conversation = await self.conversation_service.get_conversation(
                 conversation_id
             )
@@ -51,8 +53,13 @@ class ChatService:
             conversation_id, {"role": "user", "content": cleaned_message}
         )
 
-        # ── Generate the fixed response (no LLM in Task 2) ──
-        reply_text = FIXED_ASSISTANT_REPLY
+        try:
+            reply_text = await self.llm_provider.generate(cleaned_message)
+        except LLMProviderError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"The AI model is currently unavailable: {exc}",
+            ) from exc
 
         # ── Save the assistant's message ─────────────────
         await self.conversation_service.add_message(

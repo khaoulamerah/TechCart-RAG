@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION: str = "techcart_products"
 
     # ── Ollama ───────────────────────────────────
+    LLM_PROVIDER: str = "ollama"
     OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
     LLM_MODEL: str = "mistral:latest"
     EMBEDDING_MODEL: str = "BAAI/bge-m3"

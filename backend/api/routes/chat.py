@@ -7,6 +7,8 @@ from backend.api.schemas.conversation import (
     ConversationListResponse,
     ConversationResponse,
 )
+from backend.rag.generator.base import LLMProvider
+from backend.rag.generator.factory import get_llm_provider
 from backend.services.chat import ChatService
 from backend.services.conversation import ConversationService
 
@@ -15,8 +17,9 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 def get_chat_service(
     conversation_service: ConversationService = Depends(get_conversation_service),
+    llm_provider: LLMProvider = Depends(get_llm_provider),
 ) -> ChatService:
-    return ChatService(conversation_service)
+    return ChatService(conversation_service, llm_provider)
 
 
 @router.post("", response_model=ChatMessageResponse)
