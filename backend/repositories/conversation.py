@@ -44,12 +44,7 @@ class ConversationRepository:
         self, skip: int = 0, limit: int = 20
     ) -> tuple[list[dict[str, Any]], int]:
         total = await self.collection.count_documents({})
-        cursor = (
-            self.collection.find({})
-            .sort("created_at", -1)
-            .skip(skip)
-            .limit(limit)
-        )
+        cursor = self.collection.find({}).sort("created_at", -1).skip(skip).limit(limit)
         items = await cursor.to_list(length=limit)
         return items, total
 
@@ -100,9 +95,7 @@ class ConversationRepository:
         if oid is None:
             return None
 
-        set_fields = {
-            f"messages.$.{key}": value for key, value in updates.items()
-        }
+        set_fields = {f"messages.$.{key}": value for key, value in updates.items()}
         set_fields["updated_at"] = utcnow()
 
         result = await self.collection.update_one(

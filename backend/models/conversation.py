@@ -1,4 +1,3 @@
-
 from datetime import datetime, timezone
 from typing import Annotated, Any
 
@@ -52,4 +51,3 @@ class ConversationModel(BaseModel):
         "arbitrary_types_allowed": True,
         "json_encoders": {ObjectId: str},
     }
-

@@ -1,11 +1,10 @@
-
 from __future__ import annotations
 
 import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("techcart.chunker")
 
@@ -32,7 +31,7 @@ def _sentence(label: str, *values: str, suffix: str = ".") -> str:
     return f"{label} : {', '.join(values)}{suffix}"
 
 
-def _price_sentence(price_usd: Optional[float], price_source: Optional[str]) -> Optional[str]:
+def _price_sentence(price_usd: float | None, price_source: str | None) -> str | None:
     if price_usd is None:
         return None
     label = PRICE_SOURCE_LABELS.get(price_source, "prix de référence")
@@ -42,12 +41,15 @@ def _price_sentence(price_usd: Optional[float], price_source: Optional[str]) -> 
 def _store_sentence(price_eur: float, stock: int) -> str:
     if stock > 0:
         return f"Disponible chez TechCart à {price_eur} €, {stock} unité(s) en stock."
-    return f"Disponible chez TechCart à {price_eur} €, actuellement en rupture de stock."
+    return (
+        f"Disponible chez TechCart à {price_eur} €, actuellement en rupture de stock."
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────
 # Construction des chunks GPU
 # ─────────────────────────────────────────────────────────────────────
+
 
 def build_gpu_text(record: dict) -> str:
     parts: list[str] = [f"{record['name']} — carte graphique {record['manufacturer']}."]
@@ -86,13 +88,17 @@ def build_gpu_text(record: dict) -> str:
         parts.append(_sentence("Fréquences", ", ".join(clocks)))
 
     if record.get("max_power_watts") is not None:
-        parts.append(_sentence("Consommation maximale", f"{record['max_power_watts']} W"))
+        parts.append(
+            _sentence("Consommation maximale", f"{record['max_power_watts']} W")
+        )
 
     if record.get("process_nm") is not None:
         parts.append(_sentence("Gravure", f"{record['process_nm']} nm"))
 
     if record.get("best_resolution"):
-        parts.append(_sentence("Résolution maximale supportée", record["best_resolution"]))
+        parts.append(
+            _sentence("Résolution maximale supportée", record["best_resolution"])
+        )
 
     apis = []
     if record.get("direct_x"):
@@ -108,7 +114,9 @@ def build_gpu_text(record: dict) -> str:
             "seules les informations de prix sont connues."
         )
 
-    price_sentence = _price_sentence(record.get("reference_price_usd"), record.get("price_source"))
+    price_sentence = _price_sentence(
+        record.get("reference_price_usd"), record.get("price_source")
+    )
     if price_sentence:
         parts.append(price_sentence)
 
@@ -234,15 +242,15 @@ def _to_chunk(chunk_id: str, text: str, metadata: dict) -> Chunk:
     if len(text) > MAX_EXPECTED_CHUNK_CHARS:
         logger.warning(
             "Chunk %s anormalement long (%d caractères) — à vérifier.",
-            chunk_id, len(text),
+            chunk_id,
+            len(text),
         )
     return Chunk(id=chunk_id, text=text, metadata=metadata)
 
 
 def build_gpu_chunks(records: list[dict]) -> list[Chunk]:
     chunks = [
-        _to_chunk(r["id"], build_gpu_text(r), build_gpu_metadata(r))
-        for r in records
+        _to_chunk(r["id"], build_gpu_text(r), build_gpu_metadata(r)) for r in records
     ]
     logger.info("Chunking GPU : %d fiches -> %d chunks", len(records), len(chunks))
     return chunks
@@ -250,8 +258,7 @@ def build_gpu_chunks(records: list[dict]) -> list[Chunk]:
 
 def build_cpu_chunks(records: list[dict]) -> list[Chunk]:
     chunks = [
-        _to_chunk(r["id"], build_cpu_text(r), build_cpu_metadata(r))
-        for r in records
+        _to_chunk(r["id"], build_cpu_text(r), build_cpu_metadata(r)) for r in records
     ]
     logger.info("Chunking CPU : %d fiches -> %d chunks", len(records), len(chunks))
     return chunks
@@ -270,17 +277,27 @@ def build_all_chunks() -> list[Chunk]:
 # Test manuel rapide (voir section "comment tester" de l'explication)
 # ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)-7s | %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s | %(levelname)-7s | %(message)s"
+    )
     all_chunks = build_all_chunks()
 
     print("\n--- Exemple de chunk GPU (avec specs) ---")
-    example_gpu = next(c for c in all_chunks if c.metadata["category"] == "gpu" and c.metadata["specs_available"])
+    example_gpu = next(
+        c
+        for c in all_chunks
+        if c.metadata["category"] == "gpu" and c.metadata["specs_available"]
+    )
     print("ID:", example_gpu.id)
     print("TEXTE:", example_gpu.text)
     print("METADATA:", example_gpu.metadata)
 
     print("\n--- Exemple de chunk GPU (prix récent seul) ---")
-    example_modern = next(c for c in all_chunks if c.metadata["category"] == "gpu" and not c.metadata["specs_available"])
+    example_modern = next(
+        c
+        for c in all_chunks
+        if c.metadata["category"] == "gpu" and not c.metadata["specs_available"]
+    )
     print("ID:", example_modern.id)
     print("TEXTE:", example_modern.text)
     print("METADATA:", example_modern.metadata)

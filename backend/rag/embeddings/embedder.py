@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
 
 import httpx
 
@@ -14,8 +13,6 @@ class EmbeddingError(Exception):
 
 
 class OllamaEmbedder:
-
-
     def __init__(
         self,
         base_url: str,
@@ -29,7 +26,7 @@ class OllamaEmbedder:
         self._batch_size = batch_size
         self._timeout = timeout_seconds
         self._max_retries = max_retries
-        self._expected_dim: Optional[int] = None
+        self._expected_dim: int | None = None
 
     # ─── API publique ───────────────────────────────────────────────
 
@@ -44,7 +41,8 @@ class OllamaEmbedder:
             all_vectors.extend(vectors)
             logger.info(
                 "Embedding : %d/%d textes encodés",
-                min(start + self._batch_size, len(texts)), len(texts),
+                min(start + self._batch_size, len(texts)),
+                len(texts),
             )
         return all_vectors
 
@@ -58,7 +56,7 @@ class OllamaEmbedder:
     # ─── Détails d'implémentation ───────────────────────────────────
 
     async def _embed_with_retry(self, batch: list[str]) -> list[list[float]]:
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for attempt in range(1, self._max_retries + 1):
             try:
@@ -82,7 +80,10 @@ class OllamaEmbedder:
                 wait_seconds = 2 ** (attempt - 1)
                 logger.warning(
                     "Ollama injoignable (tentative %d/%d) : %s — nouvel essai dans %ds",
-                    attempt, self._max_retries, exc, wait_seconds,
+                    attempt,
+                    self._max_retries,
+                    exc,
+                    wait_seconds,
                 )
                 if attempt < self._max_retries:
                     await asyncio.sleep(wait_seconds)
@@ -119,7 +120,9 @@ class OllamaEmbedder:
 if __name__ == "__main__":
     import sys
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)-7s | %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s | %(levelname)-7s | %(message)s"
+    )
 
     embedder = OllamaEmbedder(
         base_url="http://localhost:11434",
@@ -127,10 +130,12 @@ if __name__ == "__main__":
     )
 
     try:
-        vectors = embedder.embed_batch([
-            "GeForce RTX 4090 — carte graphique Nvidia haut de gamme.",
-            "Intel i7-7Y75 — processeur basse consommation pour ultrabook.",
-        ])
+        vectors = embedder.embed_batch(
+            [
+                "GeForce RTX 4090 — carte graphique Nvidia haut de gamme.",
+                "Intel i7-7Y75 — processeur basse consommation pour ultrabook.",
+            ]
+        )
         print(f"\n{len(vectors)} vecteurs générés, dimension {len(vectors[0])}")
         print("Premiers éléments du 1er vecteur :", vectors[0][:5])
     except EmbeddingError as exc:

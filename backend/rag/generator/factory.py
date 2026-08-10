@@ -16,6 +16,5 @@ def get_llm_provider() -> LLMProvider:
         )
 
     raise ValueError(
-        f"Unknown LLM_PROVIDER '{settings.LLM_PROVIDER}'. "
-        f"Supported: 'ollama'."
+        f"Unknown LLM_PROVIDER '{settings.LLM_PROVIDER}'. Supported: 'ollama'."
     )

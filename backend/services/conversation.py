@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from bson import ObjectId
 from fastapi import HTTPException, status
 
 from backend.repositories.conversation import ConversationRepository

@@ -3,8 +3,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 # ── Messages ──────────────────────────────────────────────
+
 
 class MessageCreate(BaseModel):
     role: Literal["user", "assistant"]
@@ -26,6 +26,7 @@ class MessageResponse(BaseModel):
 
 
 # ── Conversations ─────────────────────────────────────────
+
 
 class ConversationCreate(BaseModel):
     session_id: str

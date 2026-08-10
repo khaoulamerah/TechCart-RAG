@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, Query
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from backend.api.routes.conversation import get_conversation_service
 from backend.api.schemas.chat import ChatMessageRequest, ChatMessageResponse

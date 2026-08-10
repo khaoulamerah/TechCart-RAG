@@ -30,7 +30,7 @@ async def connect_to_mongo() -> None:
 
 
 async def close_mongo_connection() -> None:
-#Close the Mongo connection. Call once on FastAPI shutdown.
+    # Close the Mongo connection. Call once on FastAPI shutdown.
     if mongodb.client:
         mongodb.client.close()
         logger.info("MongoDB connection closed.")

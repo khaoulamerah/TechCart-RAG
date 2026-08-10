@@ -26,6 +26,7 @@ def get_conversation_service(
 
 # ── Conversation endpoints ───────────────────────────────
 
+
 @router.post("", response_model=ConversationResponse, status_code=201)
 async def create_conversation(
     payload: ConversationCreate,
@@ -72,7 +73,10 @@ async def delete_conversation(
 
 # ── Message endpoints ────────────────────────────────────
 
-@router.post("/{conversation_id}/messages", response_model=ConversationResponse, status_code=201)
+
+@router.post(
+    "/{conversation_id}/messages", response_model=ConversationResponse, status_code=201
+)
 async def add_message(
     conversation_id: str,
     payload: MessageCreate,
@@ -89,7 +93,9 @@ async def list_messages(
     return await service.get_messages(conversation_id)
 
 
-@router.put("/{conversation_id}/messages/{message_id}", response_model=ConversationResponse)
+@router.put(
+    "/{conversation_id}/messages/{message_id}", response_model=ConversationResponse
+)
 async def update_message(
     conversation_id: str,
     message_id: str,
@@ -101,7 +107,9 @@ async def update_message(
     )
 
 
-@router.delete("/{conversation_id}/messages/{message_id}", response_model=ConversationResponse)
+@router.delete(
+    "/{conversation_id}/messages/{message_id}", response_model=ConversationResponse
+)
 async def delete_message(
     conversation_id: str,
     message_id: str,
