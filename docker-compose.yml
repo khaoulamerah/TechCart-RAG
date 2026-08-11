@@ -82,6 +82,7 @@ services:
 
     volumes:
       - ollama_models:/root/.ollama
+      - ./scripts/ollama.sh:/entrypoint.sh:ro
 
     ports:
       - "11434:11434"
@@ -98,6 +99,10 @@ services:
 
     restart: unless-stopped
 
+    entrypoint: ["/entrypoint.sh"]
+
+    environment:
+      LLM_MODEL: ${LLM_MODEL}
 
     networks:
       - techcart_network
