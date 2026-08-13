@@ -13,7 +13,7 @@ services:
   # Stores conversations + embedded messages
   # ────────────────────────────────────────────────────────────
   mongodb:
-    image: mongo:7
+    image: mongo:8.0.28
 
     container_name: techcart_mongodb
 
@@ -76,7 +76,7 @@ services:
   # SERVICE 3 : OLLAMA
   # ────────────────────────────────────────────────────────────
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.32.5
 
     container_name: techcart_ollama
 
