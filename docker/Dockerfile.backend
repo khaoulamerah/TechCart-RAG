@@ -1,0 +1,38 @@
+FROM python:3.11-slim
+
+# ── METADATA ────────────────────
+LABEL maintainer="TechCart"
+LABEL description="TechCart RAG Backend - FastAPI"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# ── WORKING DIRECTORY ──────────
+WORKDIR /app
+
+# ── SYSTEM DEPENDENCIES ───────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── PYTHON DEPENDENCIES ───────────────────────────────────────
+RUN pip install --no-cache-dir torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ── APPLICATION CODE ──────────────────────────────────────────
+COPY backend/ ./backend/
+COPY data/ ./data/
+
+# ── PORT ──────────────────────────────────────────────────────
+EXPOSE 8000
+
+# ── HEALTHCHECK ─────────────────────────────────────────────
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=15s \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

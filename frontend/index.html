@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechCart — Assistant IA</title>
+  <meta name="description" content="Assistant IA TechCart : trouvez le bon GPU ou CPU en langage naturel." />
+
+  <!-- Polices : une police mono pour l'identité "fiche technique",
+       une police sans-serif pour la lisibilité de la conversation -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/chat.css" />
+  <link rel="stylesheet" href="assets/css/responsive.css" />
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+          <rect x="10" y="10" width="20" height="20" rx="3" fill="#4fd1c5"/>
+          <rect x="14" y="14" width="12" height="12" rx="1.5" fill="#12151a"/>
+          <g stroke="#4fd1c5" stroke-width="1.6">
+            <line x1="14" y1="4" x2="14" y2="10"/><line x1="20" y1="4" x2="20" y2="10"/><line x1="26" y1="4" x2="26" y2="10"/>
+            <line x1="14" y1="30" x2="14" y2="36"/><line x1="20" y1="30" x2="20" y2="36"/><line x1="26" y1="30" x2="26" y2="36"/>
+            <line x1="4" y1="14" x2="10" y2="14"/><line x1="4" y1="20" x2="10" y2="20"/><line x1="4" y1="26" x2="10" y2="26"/>
+            <line x1="30" y1="14" x2="36" y2="14"/><line x1="30" y1="20" x2="36" y2="20"/><line x1="30" y1="26" x2="36" y2="26"/>
+          </g>
+        </svg>
+        <span class="brand-name">TECH<span>CART</span></span>
+      </div>
+
+      <button class="new-chat-btn" id="new-chat-btn" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        Nouvelle conversation
+      </button>
+
+      <span class="sidebar-section-label">Historique</span>
+      <nav class="history-list" id="history-list" aria-label="Historique des conversations"></nav>
+
+      <div class="sidebar-footer">
+        <span class="mono" style="font-size:11px;color:var(--text-secondary);">v1.0 · RAG</span>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="Changer le thème">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1Z"/>
+          </svg>
+          Thème
+        </button>
+      </div>
+    </aside>
+
+    <!-- ═══════════════════ ZONE PRINCIPALE ═══════════════════ -->
+    <main class="main">
+
+      <!-- Barre visible uniquement en mobile pour ouvrir la sidebar -->
+      <div class="topbar">
+        <button class="icon-btn" id="sidebar-toggle" type="button" aria-label="Ouvrir le menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
+          </svg>
+        </button>
+        <span class="brand-name" style="font-size:14px;">TechCart</span>
+      </div>
+
+      <section class="chat-container">
+        <div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div>
+
+        <div class="input-bar-wrap">
+          <form class="chat-form" id="chat-form">
+            <textarea
+              id="chat-input"
+              rows="1"
+              placeholder="Demandez un GPU, un CPU, ou comparez deux références…"
+              autocomplete="off"
+              required
+            ></textarea>
+            <button class="send-btn" id="send-btn" type="submit" aria-label="Envoyer">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+              </svg>
+            </button>
+          </form>
+          <p class="input-hint">TechCart peut se tromper. Vérifiez les prix et le stock avant tout achat.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Ordre de chargement important : chaque script dépend du précédent -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/chat.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
