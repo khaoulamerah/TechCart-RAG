@@ -14,8 +14,7 @@ RAW_DIR = Path("data/raw")
 STRUCTURED_DIR = Path("data/structured")
 
 
-# Only include files that actually exist in data/raw/.
-# If AMD_CPUs.csv does not exist, the script will simply skip it.
+
 SOURCE_FILES = [
     ("All_GPUs.csv", "GPU", None),
     ("Intel_CPUs.csv", "CPU", "Intel"),
