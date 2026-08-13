@@ -7,11 +7,6 @@ __pycache__/
 *.pyd
 .Python
 
-# Virtual environments
-.venv/
-venv/
-env/
-
 # Logs
 logs/
 *.log
@@ -19,6 +14,21 @@ logs/
 # VS Code
 .vscode/
 
-# Qdrant runtime data
+# Environnement virtuel
+venv/
+env/
+
+# Data — generated at runtime or downloaded from third-party
+# sources, never versioned. structured/ and semi_structured/ ARE
+# versioned (curated project content), see data/README.md.
+data/raw/*.csv
+data/raw/html/*
+data/raw/pdf/*
+data/raw/markdown/*
+!data/raw/html/.gitkeep
+!data/raw/pdf/.gitkeep
+!data/raw/markdown/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
 data/vector_db/*
 !data/vector_db/.gitkeep
