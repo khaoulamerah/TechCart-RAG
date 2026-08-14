@@ -57,14 +57,18 @@ async def send_chat_message(
         get_chat_service
     ),
 ):
-
+    resolved = await chat_service.prepare_conversation(
+        message=payload.message,
+        session_id=payload.session_id,
+        conversation_id=payload.conversation_id,
+    )
 
     async def event_generator() -> AsyncIterator[str]:
         try:
             async for event in chat_service.stream_message(
-                message=payload.message,
-                session_id=payload.session_id,
-                conversation_id=payload.conversation_id,
+                cleaned_message=resolved["cleaned_message"],
+                conversation_id=resolved["conversation_id"],
+                session_id=resolved["session_id"],
             ):
                 event_type = event.get(
                     "type",

@@ -7,40 +7,60 @@ const TechCartChat = (() => {
     isSending: false,
   };
 
+
   function generateId() {
-    return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    return `conv_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
   }
+
 
   function loadConversations() {
     try {
-      const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+      const raw = localStorage.getItem(
+        CONFIG.STORAGE_KEY
+      );
+
       return raw ? JSON.parse(raw) : [];
     } catch (_) {
       return [];
     }
   }
 
+
   function persistCurrentConversation() {
-    if (state.messages.length === 0) return;
+    if (state.messages.length === 0) {
+      return;
+    }
 
     const conversations = loadConversations();
 
+    const firstUserMessage = state.messages.find(
+      (message) => message.role === "user"
+    );
+
     const title =
-      state.messages
-        .find((m) => m.role === "user")
-        ?.content.slice(0, 40) ||
+      firstUserMessage?.content?.slice(0, 40) ||
       "Nouvelle conversation";
 
-    const existingIndex = conversations.findIndex(
-      (c) => c.id === state.conversationId
-    );
+    const existingIndex =
+      conversations.findIndex(
+        (conversation) =>
+          conversation.id === state.conversationId
+      );
 
     const record = {
       id: state.conversationId,
-      backendConversationId: state.backendConversationId,
+
+      backendConversationId:
+        state.backendConversationId,
+
       sessionId: state.sessionId,
+
       title,
+
       messages: state.messages,
+
       updatedAt: Date.now(),
     };
 
@@ -62,6 +82,7 @@ const TechCartChat = (() => {
     renderSidebarHistory();
   }
 
+
   function renderSidebarHistory() {
     const conversations = loadConversations().sort(
       (a, b) => b.updatedAt - a.updatedAt
@@ -78,16 +99,21 @@ const TechCartChat = (() => {
     );
   }
 
+
   function renameConversation(id, newTitle) {
     const conversations = loadConversations();
 
     const index = conversations.findIndex(
-      (c) => c.id === id
+      (conversation) =>
+        conversation.id === id
     );
 
-    if (index === -1) return;
+    if (index === -1) {
+      return;
+    }
 
-    conversations[index].title = newTitle;
+    conversations[index].title =
+      newTitle;
 
     try {
       localStorage.setItem(
@@ -101,29 +127,36 @@ const TechCartChat = (() => {
     renderSidebarHistory();
   }
 
+
   async function deleteConversationById(id) {
     const conversations = loadConversations();
 
-    const conv = conversations.find(
-      (c) => c.id === id
-    );
+    const conversation =
+      conversations.find(
+        (item) => item.id === id
+      );
 
-    if (!conv) return;
+    if (!conversation) {
+      return;
+    }
 
-    if (conv.backendConversationId) {
+    if (conversation.backendConversationId) {
       try {
         await TechCartAPI.deleteConversation(
-          conv.backendConversationId
+          conversation.backendConversationId
         );
-      } catch (_) {
-        // Backend deletion failure should not prevent
-        // local conversation deletion.
+      } catch (error) {
+        console.error(
+          "Backend conversation deletion failed:",
+          error
+        );
       }
     }
 
-    const remaining = conversations.filter(
-      (c) => c.id !== id
-    );
+    const remaining =
+      conversations.filter(
+        (item) => item.id !== id
+      );
 
     try {
       localStorage.setItem(
@@ -149,21 +182,32 @@ const TechCartChat = (() => {
     }
   }
 
+
   function openConversation(id) {
     const conversations = loadConversations();
 
-    const conv = conversations.find(
-      (c) => c.id === id
-    );
+    const conversation =
+      conversations.find(
+        (item) => item.id === id
+      );
 
-    if (!conv) return;
+    if (!conversation) {
+      return;
+    }
 
-    state.conversationId = conv.id;
+    state.conversationId =
+      conversation.id;
+
     state.backendConversationId =
-      conv.backendConversationId ?? null;
+      conversation.backendConversationId ??
+      null;
+
     state.sessionId =
-      conv.sessionId ?? null;
-    state.messages = conv.messages || [];
+      conversation.sessionId ??
+      null;
+
+    state.messages =
+      conversation.messages || [];
 
     TechCartUI.clearMessages();
 
@@ -179,10 +223,17 @@ const TechCartChat = (() => {
     renderSidebarHistory();
   }
 
+
   function startNewConversation() {
-    state.conversationId = generateId();
-    state.backendConversationId = null;
-    state.sessionId = null;
+    state.conversationId =
+      generateId();
+
+    state.backendConversationId =
+      null;
+
+    state.sessionId =
+      null;
+
     state.messages = [];
 
     TechCartUI.clearMessages();
@@ -197,6 +248,11 @@ const TechCartChat = (() => {
     renderSidebarHistory();
   }
 
+
+  /**
+   * Send a user message and display the Ollama response
+   * token-by-token.
+   */
   async function sendUserMessage(rawText) {
     const text = rawText.trim();
 
@@ -205,13 +261,16 @@ const TechCartChat = (() => {
     }
 
     state.isSending = true;
+
     TechCartUI.setSendingState(true);
 
-    // ─────────────────────────────────────────────
-    // 1. Display user message immediately
-    // ─────────────────────────────────────────────
-
-    TechCartUI.renderMessage("user", text);
+    /*
+     * 1. Display user message immediately.
+     */
+    TechCartUI.renderMessage(
+      "user",
+      text
+    );
 
     state.messages.push({
       role: "user",
@@ -220,80 +279,145 @@ const TechCartChat = (() => {
 
     TechCartUI.clearInput();
 
-    // ─────────────────────────────────────────────
-    // 2. Display thinking indicator
-    // ─────────────────────────────────────────────
 
+    /*
+     * 2. Show "thinking" indicator.
+     */
     const thinkingRow =
       TechCartUI.showThinkingIndicator();
 
-    try {
-      // ───────────────────────────────────────────
-      // 3. Create empty assistant bubble
-      // ───────────────────────────────────────────
 
-      const bubble =
-        TechCartUI.renderMessage(
-          "assistant",
-          ""
-        );
-
-      let fullReply = "";
-
-      // ───────────────────────────────────────────
-      // 4. Start backend streaming
-      // ───────────────────────────────────────────
-
-      await TechCartAPI.streamMessage(
-        text,
-        state.sessionId,
-        state.backendConversationId,
-
-        // Called for every received chunk
-        (chunk) => {
-          // Remove thinking indicator when
-          // the first real token arrives.
-          if (thinkingRow) {
-            thinkingRow.remove();
-          }
-
-          fullReply += chunk;
-
-          // Display chunk immediately.
-          TechCartUI.appendToMessage(
-            bubble,
-            chunk
-          );
-        },
-
-        // Called when backend sends metadata
-        (metadata) => {
-          if (metadata.conversationId) {
-            state.backendConversationId =
-              metadata.conversationId;
-          }
-
-          if (metadata.sessionId) {
-            state.sessionId =
-              metadata.sessionId;
-          }
-        }
+    /*
+     * 3. Create the assistant bubble BEFORE
+     *    the first token arrives.
+     */
+    const assistantBubble =
+      TechCartUI.renderMessage(
+        "assistant",
+        ""
       );
 
-      // ───────────────────────────────────────────
-      // 5. Save complete assistant response
-      // ───────────────────────────────────────────
 
-      state.messages.push({
-        role: "assistant",
-        content: fullReply,
-      });
+    /*
+     * Add a streaming state.
+     */
+    TechCartUI.startStreamingMessage(
+      assistantBubble
+    );
+
+
+    let fullReply = "";
+
+    try {
+      /*
+       * 4. Start real streaming.
+       */
+      const result =
+        await TechCartAPI.streamMessage(
+          text,
+
+          state.sessionId,
+
+          state.backendConversationId,
+
+          /*
+           * Called for EVERY token.
+           */
+          (chunk) => {
+            /*
+             * Remove "thinking..." when the
+             * first real token arrives.
+             */
+            if (thinkingRow) {
+              thinkingRow.remove();
+            }
+
+            fullReply += chunk;
+
+            /*
+             * Immediately display the token.
+             */
+            TechCartUI.appendToMessage(
+              assistantBubble,
+              chunk
+            );
+          },
+
+          /*
+           * Called when backend sends "done".
+           */
+          (metadata) => {
+            if (metadata.conversationId) {
+              state.backendConversationId =
+                metadata.conversationId;
+            }
+
+            if (metadata.sessionId) {
+              state.sessionId =
+                metadata.sessionId;
+            }
+          }
+        );
+
+
+      /*
+       * 5. Use the final metadata returned by
+       *    streamMessage().
+       */
+      state.backendConversationId =
+        result.conversationId ??
+        state.backendConversationId;
+
+      state.sessionId =
+        result.sessionId ??
+        state.sessionId;
+
+      fullReply =
+        result.reply || fullReply;
+
+
+      /*
+       * 6. Finish streaming UI.
+       */
+      TechCartUI.finishStreamingMessage(
+        assistantBubble
+      );
+
+
+      /*
+       * 7. Save the complete assistant response.
+       */
+      if (fullReply) {
+        state.messages.push({
+          role: "assistant",
+          content: fullReply,
+        });
+      }
 
       persistCurrentConversation();
 
     } catch (error) {
+      console.error(
+        "Chat streaming failed:",
+        error
+      );
+
       if (thinkingRow) {
         thinkingRow.remove();
+      }
+
+      /*
+       * Remove the unfinished assistant bubble
+       * if no content was received.
+       */
+      if (!fullReply) {
+        assistantBubble
+          ?.closest(".message-row")
+          ?.remove();
+      } else {
+        TechCartUI.finishStreamingMessage(
+          assistantBubble
+        );
       }
 
       TechCartUI.renderErrorMessage(
@@ -302,36 +426,64 @@ const TechCartChat = (() => {
 
     } finally {
       state.isSending = false;
+
       TechCartUI.setSendingState(false);
     }
   }
 
+
   function errorToUserMessage(error) {
     if (error?.kind === "network") {
-      return "Impossible de joindre le serveur TechCart. Vérifiez que le backend est démarré.";
+      return (
+        "Impossible de joindre le serveur TechCart. " +
+        "Vérifiez que le backend est démarré."
+      );
     }
 
     if (error?.kind === "timeout") {
-      return "Le serveur met trop de temps à répondre. Réessayez dans quelques instants.";
+      return (
+        "Le serveur met trop de temps à répondre. " +
+        "Réessayez dans quelques instants."
+      );
     }
 
-    return "Une erreur est survenue. Veuillez réessayer.";
+    if (error?.kind === "stream") {
+      return (
+        "Le serveur n'a pas retourné un flux de réponse valide."
+      );
+    }
+
+    if (error?.kind === "server") {
+      return (
+        error.detail ||
+        error.message ||
+        "Le serveur a rencontré une erreur."
+      );
+    }
+
+    return (
+      "Une erreur est survenue. Veuillez réessayer."
+    );
   }
+
 
   function init() {
     const conversations =
       loadConversations();
 
     if (conversations.length > 0) {
-      openConversation(
+      const latest =
         conversations.sort(
-          (a, b) => b.updatedAt - a.updatedAt
-        )[0].id
-      );
+          (a, b) =>
+            b.updatedAt - a.updatedAt
+        )[0];
+
+      openConversation(latest.id);
     } else {
       startNewConversation();
     }
   }
+
 
   return {
     init,

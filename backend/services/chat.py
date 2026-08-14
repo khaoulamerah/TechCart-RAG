@@ -5,10 +5,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 
-from backend.rag.generator.base import (
-    LLMProvider,
-    LLMProviderError,
-)
+from backend.rag.generator.base import LLMProvider, LLMProviderError
 from backend.services.conversation import ConversationService
 
 
@@ -27,14 +24,12 @@ class ChatService:
         self.conversation_service = conversation_service
         self.llm_provider = llm_provider
 
-    async def stream_message(
+    async def prepare_conversation(
         self,
         message: str,
         session_id: str | None,
         conversation_id: str | None,
-    ) -> AsyncIterator[dict[str, Any]]:
-
-
+    ) -> dict[str, Any]:
         cleaned_message = (message or "").strip()
 
         if not cleaned_message:
@@ -43,68 +38,61 @@ class ChatService:
                 detail="Message cannot be empty.",
             )
 
-
         if conversation_id:
-            conversation = (
-                await self.conversation_service.get_conversation(
-                    conversation_id
-                )
+            conversation = await self.conversation_service.get_conversation(
+                conversation_id
             )
         else:
             session_id = session_id or str(uuid4())
-
-            conversation = (
-                await self.conversation_service.get_or_create_by_session(
-                    session_id
-                )
+            conversation = await self.conversation_service.get_or_create_by_session(
+                session_id
             )
-
             conversation_id = conversation["id"]
 
-        resolved_session_id = conversation["session_id"]
+        return {
+            "cleaned_message": cleaned_message,
+            "conversation_id": conversation_id,
+            "session_id": conversation["session_id"],
+        }
 
-
+    async def stream_message(
+        self,
+        cleaned_message: str,
+        conversation_id: str,
+        session_id: str,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """
+        Pure streaming part. Must only be called AFTER
+        prepare_conversation() has succeeded — no validation happens
+        here anymore, only: save user message, stream LLM tokens,
+        save assistant message.
+        """
         await self.conversation_service.add_message(
             conversation_id,
-            {
-                "role": "user",
-                "content": cleaned_message,
-            },
+            {"role": "user", "content": cleaned_message},
         )
-
 
         yield {
             "type": "metadata",
             "conversation_id": conversation_id,
-            "session_id": resolved_session_id,
+            "session_id": session_id,
         }
 
         full_response: list[str] = []
 
         try:
-            async for chunk in self.llm_provider.generate_stream(
-                cleaned_message
-            ):
+            async for chunk in self.llm_provider.generate_stream(cleaned_message):
                 if not chunk:
                     continue
-
                 full_response.append(chunk)
+                yield {"type": "token", "content": chunk}
 
-                yield {
-                    "type": "token",
-                    "content": chunk,
-                }
-
-        except LLMProviderError as exc:
+        except LLMProviderError:
             yield {
                 "type": "error",
-                "message": (
-                    "The AI model is currently unavailable."
-                ),
+                "message": "The AI model is currently unavailable.",
             }
-
             return
-
 
         reply_text = "".join(full_response).strip()
 
@@ -113,22 +101,16 @@ class ChatService:
                 "type": "error",
                 "message": "The AI model returned an empty response.",
             }
-
             return
-
 
         await self.conversation_service.add_message(
             conversation_id,
-            {
-                "role": "assistant",
-                "content": reply_text,
-            },
+            {"role": "assistant", "content": reply_text},
         )
-
 
         yield {
             "type": "done",
             "conversation_id": conversation_id,
-            "session_id": resolved_session_id,
+            "session_id": session_id,
             "created_at": utcnow().isoformat(),
         }
