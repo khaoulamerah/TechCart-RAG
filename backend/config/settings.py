@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # ── App ──────────────────────────────────────
+    # ── Application ──────────────────────────────────────────
     PROJECT_NAME: str = "TechCart"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
@@ -11,23 +11,25 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
 
-    # ── MongoDB ──────────────────────────────────
+    # ── MongoDB ──────────────────────────────────────────────
     MONGODB_URL: str
     MONGODB_DB: str = "techcart"
 
-    # ── Qdrant ───────────────────────────────────
+    # ── Qdrant ───────────────────────────────────────────────
     QDRANT_HOST: str = "qdrant"
     QDRANT_PORT: int = 6333
     QDRANT_GRPC_PORT: int = 6334
     QDRANT_COLLECTION: str = "techcart_products"
 
-    # ── Ollama ───────────────────────────────────
+    # ── LLM / Ollama ─────────────────────────────────────────
     LLM_PROVIDER: str = "ollama"
-    OLLAMA_BASE_URL: str = "http://host.docker.internal:11434"
+    OLLAMA_BASE_URL: str = "http://ollama:11434"
     LLM_MODEL: str = "mistral:latest"
+
+    # ── Embeddings ───────────────────────────────────────────
     EMBEDDING_MODEL: str = "BAAI/bge-m3"
 
-    # ── RAG settings ─────────────────────────────
+    # ── RAG ──────────────────────────────────────────────────
     CHUNK_SIZE: int = 512
     CHUNK_OVERLAP: int = 100
     TOP_K_RESULTS: int = 5
