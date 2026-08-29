@@ -1,19 +1,4 @@
-"""
-Task 4 — Data Validation.
 
-Checks:
-  - every JSON file in data/structured/ is valid JSON and UTF-8
-  - every JSON file is non-empty
-  - product records have a 'category' field (required for later use)
-  - every Markdown file in data/semi_structured/ is valid UTF-8 and non-empty
-  - no duplicate product entries (by their raw dict content)
-  - naming convention: files use snake_case, .json or .md extensions
-
-Run from the project root:
-    python scripts/validate_data.py
-Exits with a non-zero status if any check fails, so it can be used
-in CI later.
-"""
 from __future__ import annotations
 
 import json
