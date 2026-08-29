@@ -21,15 +21,37 @@ SOURCE_FILES = {
 }
 
 
-def to_snake_case(value: str) -> str:
-    """Convert a column name to snake_case."""
+def normalize_column_name(value: str) -> str:
+    """
+    Normalize a source column name to snake_case.
+
+    Handles acronyms such as CPU, GPU, HDMI, DVI, etc.
+    """
 
     value = str(value).strip()
 
-    value = re.sub(r"[^\w\s]", "", value)
-    value = re.sub(r"\s+", "_", value)
+    # Remove BOM if present.
+    value = value.replace("\ufeff", "")
+
+    # Normalize separators.
+    value = re.sub(r"[^A-Za-z0-9]+", "_", value)
+
+    # Handle acronym -> word transitions.
     value = re.sub(
-        r"(?<!^)(?=[A-Z])",
+        r"([A-Z]+)([A-Z][a-z])",
+        r"\1_\2",
+        value,
+    )
+
+    # Handle lower/number -> upper transitions.
+    value = re.sub(
+        r"([a-z0-9])([A-Z])",
+        r"\1_\2",
+        value,
+    )
+
+    value = re.sub(
+        r"_+",
         "_",
         value,
     )
@@ -37,16 +59,19 @@ def to_snake_case(value: str) -> str:
     return value.lower().strip("_")
 
 
-def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize dataframe columns and values."""
+def normalize_dataframe(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Normalize columns and remove empty/duplicate rows."""
 
     df = df.copy()
 
     df.columns = [
-        to_snake_case(column)
+        normalize_column_name(column)
         for column in df.columns
     ]
 
+    # Normalize string values.
     for column in df.columns:
 
         if df[column].dtype == "object":
@@ -61,57 +86,32 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
                 {
                     "": pd.NA,
                     "nan": pd.NA,
-                    "None": pd.NA,
                     "NaN": pd.NA,
+                    "None": pd.NA,
+                    "null": pd.NA,
                 }
             )
 
+    # Remove completely empty rows.
     df = df.dropna(how="all")
 
+    # Remove exact duplicate rows.
     df = df.drop_duplicates()
 
     return df
 
 
-def detect_gpu_brand(
-    manufacturer: Any,
-) -> str | None:
-
-    if manufacturer is None:
-        return None
-
-    value = str(manufacturer).strip().lower()
-
-    if value == "nvidia":
-        return "Nvidia"
-
-    if value == "amd":
-        return "AMD"
-
-    if value == "ati":
-        return "ATI"
-
-    if value == "intel":
-        return "Intel"
-
-    return str(manufacturer).strip()
-
-
-def detect_cpu_brand(
-    row: pd.Series,
-    filename: str,
-) -> str:
-
-    if filename == "amd_cpus.csv":
-        return "AMD"
-
-    return "Intel"
-
-
 def clean_value(value: Any) -> Any:
+    """Convert pandas values into JSON-safe values."""
 
-    if pd.isna(value):
+    if value is None:
         return None
+
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
 
     if isinstance(value, str):
 
@@ -132,27 +132,56 @@ def clean_value(value: Any) -> Any:
     return value
 
 
+def row_to_dict(
+    row: pd.Series,
+) -> dict[str, Any]:
+    return {
+        key: clean_value(value)
+        for key, value in row.to_dict().items()
+    }
+
+
+def detect_gpu_brand(
+    manufacturer: Any,
+) -> str | None:
+
+    if manufacturer is None:
+        return None
+
+    value = str(manufacturer).strip().lower()
+
+    mapping = {
+        "nvidia": "Nvidia",
+        "amd": "AMD",
+        "ati": "ATI",
+        "intel": "Intel",
+    }
+
+    return mapping.get(
+        value,
+        str(manufacturer).strip(),
+    )
+
+
 def build_gpu_record(
     row: pd.Series,
     index: int,
 ) -> dict[str, Any]:
 
-    data = {
-        key: clean_value(value)
-        for key, value in row.to_dict().items()
-    }
+    data = row_to_dict(row)
 
     name = data.get("name")
 
     if not name:
         raise ValueError(
-            f"GPU row {index} has no name."
+            "GPU has no name."
         )
 
     manufacturer = detect_gpu_brand(
         data.get("manufacturer")
     )
 
+    # Keep source fields under specs.
     specs = {
         key: value
         for key, value in data.items()
@@ -164,13 +193,7 @@ def build_gpu_record(
         "name": name,
         "category": "GPU",
         "brand": manufacturer,
-        "specs": {
-            **specs,
-            "name": name,
-            "manufacturer": (
-                data.get("manufacturer")
-            ),
-        },
+        "specs": specs,
     }
 
 
@@ -179,20 +202,19 @@ def build_intel_cpu_record(
     index: int,
 ) -> dict[str, Any]:
 
-    data = {
-        key: clean_value(value)
-        for key, value in row.to_dict().items()
-    }
+    data = row_to_dict(row)
 
-    name = data.get("processor_number")
+    name = data.get(
+        "processor_number"
+    )
 
     if not name:
         raise ValueError(
-            f"Intel CPU row {index} has no processor_number."
+            "Intel CPU has no processor_number."
         )
 
     return {
-        "id": f"cpu_{index + 1:05d}",
+        "id": f"cpu_intel_{index + 1:05d}",
         "name": name,
         "category": "CPU",
         "brand": "Intel",
@@ -205,16 +227,13 @@ def build_amd_cpu_record(
     index: int,
 ) -> dict[str, Any]:
 
-    data = {
-        key: clean_value(value)
-        for key, value in row.to_dict().items()
-    }
+    data = row_to_dict(row)
 
     name = data.get("cpu")
 
     if not name:
         raise ValueError(
-            f"AMD CPU row {index} has no CPU name."
+            "AMD CPU has no CPU name."
         )
 
     return {
@@ -235,18 +254,16 @@ def read_source_file(
     if not path.exists():
 
         raise FileNotFoundError(
-            f"Required source file not found: {path}"
+            f"Source file not found: {path}"
         )
 
-    # These files are CSV text files, even though
-    # older versions were incorrectly named .xls.
     df = pd.read_csv(
         path,
         encoding="utf-8",
         low_memory=False,
     )
 
-    return clean_dataframe(df)
+    return normalize_dataframe(df)
 
 
 def process_file(
@@ -255,6 +272,19 @@ def process_file(
 ) -> list[dict[str, Any]]:
 
     df = read_source_file(filename)
+
+    print(
+        f"\nProcessing {filename}"
+    )
+
+    print(
+        f"Rows found: {len(df)}"
+    )
+
+    print(
+        "Columns:",
+        ", ".join(df.columns),
+    )
 
     records: list[dict[str, Any]] = []
 
@@ -294,11 +324,12 @@ def process_file(
         except ValueError as exc:
 
             print(
-                f"  [skip] {filename} row {index}: {exc}"
+                f"[skip] {filename} "
+                f"row {index}: {exc}"
             )
 
     print(
-        f"  [ok] {filename}: "
+        f"[ok] {filename}: "
         f"{len(records)} records"
     )
 
@@ -316,12 +347,7 @@ def remove_duplicate_records(
     for record in records:
 
         fingerprint = json.dumps(
-            {
-                "name": record.get("name"),
-                "category": record.get("category"),
-                "brand": record.get("brand"),
-                "specs": record.get("specs"),
-            },
+            record,
             sort_keys=True,
             ensure_ascii=False,
         )
@@ -366,26 +392,29 @@ def build_attributes(
     records: list[dict[str, Any]],
 ) -> dict[str, list[str]]:
 
-    attributes: dict[str, set[str]] = {}
+    result: dict[str, set[str]] = {}
 
     for record in records:
 
         category = record["category"]
 
-        attributes.setdefault(
+        result.setdefault(
             category,
             set(),
         )
 
-        specs = record.get("specs", {})
+        specs = record.get(
+            "specs",
+            {},
+        )
 
-        attributes[category].update(
+        result[category].update(
             specs.keys()
         )
 
     return {
-        category: sorted(keys)
-        for category, keys in attributes.items()
+        category: sorted(attributes)
+        for category, attributes in result.items()
     }
 
 
@@ -411,7 +440,9 @@ def write_json(
             indent=2,
         )
 
-    print(f"  [write] {path}")
+    print(
+        f"[write] {path}"
+    )
 
 
 def main() -> None:
@@ -420,7 +451,6 @@ def main() -> None:
     print("=" * 70)
     print("TECHCART DATA CLEANING")
     print("=" * 70)
-    print()
 
     all_records: list[dict[str, Any]] = []
 
@@ -436,18 +466,26 @@ def main() -> None:
     if not all_records:
 
         raise RuntimeError(
-            "No records were produced."
+            "No records were generated."
         )
 
     print()
     print("Removing duplicate records...")
+
+    before = len(all_records)
 
     all_records = remove_duplicate_records(
         all_records
     )
 
     print(
-        f"Unique records: {len(all_records)}"
+        f"Duplicates removed: "
+        f"{before - len(all_records)}"
+    )
+
+    print(
+        f"Final records: "
+        f"{len(all_records)}"
     )
 
     categories = build_categories(
