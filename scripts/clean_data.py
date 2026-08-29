@@ -1,128 +1,491 @@
-
 from __future__ import annotations
 
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
-RAW_DIR = Path("data/raw")
-STRUCTURED_DIR = Path("data/structured")
 
-# Map raw filename -> (category label, known brand keywords to detect)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
+STRUCTURED_DIR = PROJECT_ROOT / "data" / "structured"
+
+
 SOURCE_FILES = {
-    "All_GPUs.csv": {
-        "category": "gpu",
-        "brands": ["NVIDIA", "AMD", "Intel"],
-    },
-    "Intel_CPUs.csv": {
-        "category": "cpu",
-        "brands": ["Intel"],
-    },
+    "All_GPUs.csv": "GPU",
+    "Intel_CPUs.csv": "CPU",
+    "amd_cpus.csv": "CPU",
 }
 
 
-def to_snake_case(column_name: str) -> str:
-    name = column_name.strip()
-    name = re.sub(r"[^\w\s]", "", name)          # drop punctuation
-    name = re.sub(r"\s+", "_", name)              # spaces -> underscores
-    name = re.sub(r"(?<!^)(?=[A-Z])", "_", name)   # camelCase -> snake_case
-    return name.lower().strip("_")
+def to_snake_case(value: str) -> str:
+    """Convert a column name to snake_case."""
 
+    value = str(value).strip()
 
-def guess_brand(name: str, known_brands: list[str]) -> str | None:
-    if not isinstance(name, str):
-        return None
-    for brand in known_brands:
-        if brand.lower() in name.lower():
-            return brand
-    return None
+    value = re.sub(r"[^\w\s]", "", value)
+    value = re.sub(r"\s+", "_", value)
+    value = re.sub(
+        r"(?<!^)(?=[A-Z])",
+        "_",
+        value,
+    )
+
+    return value.lower().strip("_")
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df.columns = [to_snake_case(c) for c in df.columns]
+    """Normalize dataframe columns and values."""
 
-    # Strip whitespace on every text column.
-    for col in df.select_dtypes(include="object").columns:
-        df[col] = df[col].astype(str).str.strip()
-        df[col] = df[col].replace({"nan": None, "None": None, "": None})
+    df = df.copy()
+
+    df.columns = [
+        to_snake_case(column)
+        for column in df.columns
+    ]
+
+    for column in df.columns:
+
+        if df[column].dtype == "object":
+
+            df[column] = (
+                df[column]
+                .astype("string")
+                .str.strip()
+            )
+
+            df[column] = df[column].replace(
+                {
+                    "": pd.NA,
+                    "nan": pd.NA,
+                    "None": pd.NA,
+                    "NaN": pd.NA,
+                }
+            )
 
     df = df.dropna(how="all")
+
     df = df.drop_duplicates()
+
     return df
 
 
-def process_file(filename: str, config: dict) -> list[dict]:
-    path = RAW_DIR / filename
-    if not path.exists():
-        print(f"  [skip] {filename} not found in {RAW_DIR}/")
-        return []
+def detect_gpu_brand(
+    manufacturer: Any,
+) -> str | None:
 
-    df = pd.read_csv(path, encoding="utf-8", on_bad_lines="skip")
-    df = clean_dataframe(df)
+    if manufacturer is None:
+        return None
 
-    name_col = next(
-        (c for c in df.columns if c in ("name", "model", "product_name")),
-        df.columns[0],
+    value = str(manufacturer).strip().lower()
+
+    if value == "nvidia":
+        return "Nvidia"
+
+    if value == "amd":
+        return "AMD"
+
+    if value == "ati":
+        return "ATI"
+
+    if value == "intel":
+        return "Intel"
+
+    return str(manufacturer).strip()
+
+
+def detect_cpu_brand(
+    row: pd.Series,
+    filename: str,
+) -> str:
+
+    if filename == "amd_cpus.csv":
+        return "AMD"
+
+    return "Intel"
+
+
+def clean_value(value: Any) -> Any:
+
+    if pd.isna(value):
+        return None
+
+    if isinstance(value, str):
+
+        value = value.strip()
+
+        if not value:
+            return None
+
+        return value
+
+    if hasattr(value, "item"):
+
+        try:
+            return value.item()
+        except (ValueError, TypeError):
+            pass
+
+    return value
+
+
+def build_gpu_record(
+    row: pd.Series,
+    index: int,
+) -> dict[str, Any]:
+
+    data = {
+        key: clean_value(value)
+        for key, value in row.to_dict().items()
+    }
+
+    name = data.get("name")
+
+    if not name:
+        raise ValueError(
+            f"GPU row {index} has no name."
+        )
+
+    manufacturer = detect_gpu_brand(
+        data.get("manufacturer")
     )
 
-    records = []
-    for _, row in df.iterrows():
-        record = row.where(pd.notnull(row), None).to_dict()
-        record["category"] = config["category"]
-        record["brand"] = guess_brand(record.get(name_col, ""), config["brands"])
-        records.append(record)
+    specs = {
+        key: value
+        for key, value in data.items()
+        if key != "name"
+    }
 
-    print(f"  [ok]   {filename}: {len(records)} rows -> category='{config['category']}'")
+    return {
+        "id": f"gpu_{index + 1:05d}",
+        "name": name,
+        "category": "GPU",
+        "brand": manufacturer,
+        "specs": {
+            **specs,
+            "name": name,
+            "manufacturer": (
+                data.get("manufacturer")
+            ),
+        },
+    }
+
+
+def build_intel_cpu_record(
+    row: pd.Series,
+    index: int,
+) -> dict[str, Any]:
+
+    data = {
+        key: clean_value(value)
+        for key, value in row.to_dict().items()
+    }
+
+    name = data.get("processor_number")
+
+    if not name:
+        raise ValueError(
+            f"Intel CPU row {index} has no processor_number."
+        )
+
+    return {
+        "id": f"cpu_{index + 1:05d}",
+        "name": name,
+        "category": "CPU",
+        "brand": "Intel",
+        "specs": data,
+    }
+
+
+def build_amd_cpu_record(
+    row: pd.Series,
+    index: int,
+) -> dict[str, Any]:
+
+    data = {
+        key: clean_value(value)
+        for key, value in row.to_dict().items()
+    }
+
+    name = data.get("cpu")
+
+    if not name:
+        raise ValueError(
+            f"AMD CPU row {index} has no CPU name."
+        )
+
+    return {
+        "id": f"cpu_amd_{index + 1:05d}",
+        "name": name,
+        "category": "CPU",
+        "brand": "AMD",
+        "specs": data,
+    }
+
+
+def read_source_file(
+    filename: str,
+) -> pd.DataFrame:
+
+    path = RAW_DIR / filename
+
+    if not path.exists():
+
+        raise FileNotFoundError(
+            f"Required source file not found: {path}"
+        )
+
+    # These files are CSV text files, even though
+    # older versions were incorrectly named .xls.
+    df = pd.read_csv(
+        path,
+        encoding="utf-8",
+        low_memory=False,
+    )
+
+    return clean_dataframe(df)
+
+
+def process_file(
+    filename: str,
+    category: str,
+) -> list[dict[str, Any]]:
+
+    df = read_source_file(filename)
+
+    records: list[dict[str, Any]] = []
+
+    for index, row in df.iterrows():
+
+        try:
+
+            if filename == "All_GPUs.csv":
+
+                record = build_gpu_record(
+                    row,
+                    index,
+                )
+
+            elif filename == "Intel_CPUs.csv":
+
+                record = build_intel_cpu_record(
+                    row,
+                    index,
+                )
+
+            elif filename == "amd_cpus.csv":
+
+                record = build_amd_cpu_record(
+                    row,
+                    index,
+                )
+
+            else:
+
+                raise ValueError(
+                    f"Unsupported source file: {filename}"
+                )
+
+            records.append(record)
+
+        except ValueError as exc:
+
+            print(
+                f"  [skip] {filename} row {index}: {exc}"
+            )
+
+    print(
+        f"  [ok] {filename}: "
+        f"{len(records)} records"
+    )
+
     return records
 
 
-def build_categories_and_brands(all_records: list[dict]) -> tuple[list[dict], list[dict]]:
-    categories = sorted({r["category"] for r in all_records if r.get("category")})
-    brands = sorted({r["brand"] for r in all_records if r.get("brand")})
+def remove_duplicate_records(
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
 
-    categories_json = [{"id": c, "name": c.upper()} for c in categories]
-    brands_json = [{"id": b.lower().replace(" ", "_"), "name": b} for b in brands]
-    return categories_json, brands_json
+    unique: list[dict[str, Any]] = []
+
+    seen: set[str] = set()
+
+    for record in records:
+
+        fingerprint = json.dumps(
+            {
+                "name": record.get("name"),
+                "category": record.get("category"),
+                "brand": record.get("brand"),
+                "specs": record.get("specs"),
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+
+        if fingerprint in seen:
+            continue
+
+        seen.add(fingerprint)
+
+        unique.append(record)
+
+    return unique
 
 
-def write_json(data, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    print(f"  [write] {path} ({len(data)} entries)")
+def build_categories(
+    records: list[dict[str, Any]],
+) -> list[str]:
+
+    return sorted(
+        {
+            record["category"]
+            for record in records
+            if record.get("category")
+        }
+    )
+
+
+def build_brands(
+    records: list[dict[str, Any]],
+) -> list[str]:
+
+    return sorted(
+        {
+            record["brand"]
+            for record in records
+            if record.get("brand")
+        }
+    )
+
+
+def build_attributes(
+    records: list[dict[str, Any]],
+) -> dict[str, list[str]]:
+
+    attributes: dict[str, set[str]] = {}
+
+    for record in records:
+
+        category = record["category"]
+
+        attributes.setdefault(
+            category,
+            set(),
+        )
+
+        specs = record.get("specs", {})
+
+        attributes[category].update(
+            specs.keys()
+        )
+
+    return {
+        category: sorted(keys)
+        for category, keys in attributes.items()
+    }
+
+
+def write_json(
+    data: Any,
+    path: Path,
+) -> None:
+
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with path.open(
+        "w",
+        encoding="utf-8",
+    ) as file:
+
+        json.dump(
+            data,
+            file,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    print(f"  [write] {path}")
 
 
 def main() -> None:
-    print("Cleaning raw CSVs into data/structured/ ...")
-    all_records: list[dict] = []
 
-    for filename, config in SOURCE_FILES.items():
-        all_records.extend(process_file(filename, config))
+    print()
+    print("=" * 70)
+    print("TECHCART DATA CLEANING")
+    print("=" * 70)
+    print()
+
+    all_records: list[dict[str, Any]] = []
+
+    for filename, category in SOURCE_FILES.items():
+
+        records = process_file(
+            filename,
+            category,
+        )
+
+        all_records.extend(records)
 
     if not all_records:
-        print("No records produced — check that your CSVs are in data/raw/.")
-        return
 
-    categories, brands = build_categories_and_brands(all_records)
+        raise RuntimeError(
+            "No records were produced."
+        )
 
-    write_json(all_records, STRUCTURED_DIR / "products.json")
-    write_json(categories, STRUCTURED_DIR / "categories.json")
-    write_json(brands, STRUCTURED_DIR / "brands.json")
+    print()
+    print("Removing duplicate records...")
 
-    # attributes.json: the set of spec fields available per category,
-    # useful later for building filters/UI without re-scanning products.json.
-    attributes: dict[str, list[str]] = {}
-    for record in all_records:
-        cat = record["category"]
-        keys = [k for k in record.keys() if k not in ("category", "brand")]
-        attributes.setdefault(cat, set()).update(keys)
-    attributes = {cat: sorted(keys) for cat, keys in attributes.items()}
-    write_json(attributes, STRUCTURED_DIR / "attributes.json")
+    all_records = remove_duplicate_records(
+        all_records
+    )
 
-    print("Done.")
+    print(
+        f"Unique records: {len(all_records)}"
+    )
+
+    categories = build_categories(
+        all_records
+    )
+
+    brands = build_brands(
+        all_records
+    )
+
+    attributes = build_attributes(
+        all_records
+    )
+
+    write_json(
+        all_records,
+        STRUCTURED_DIR / "products.json",
+    )
+
+    write_json(
+        categories,
+        STRUCTURED_DIR / "categories.json",
+    )
+
+    write_json(
+        brands,
+        STRUCTURED_DIR / "brands.json",
+    )
+
+    write_json(
+        attributes,
+        STRUCTURED_DIR / "attributes.json",
+    )
+
+    print()
+    print("=" * 70)
+    print("DATA CLEANING COMPLETED")
+    print("=" * 70)
 
 
 if __name__ == "__main__":
