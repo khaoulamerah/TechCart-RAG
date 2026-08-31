@@ -20,9 +20,7 @@ class CleanStage(Stage):
             print(f"Rows before cleaning: {len(df)}")
             print(f"Columns before cleaning: {len(df.columns)}")
 
-            # -----------------------------------------
-            # 1. Remove completely empty rows
-            # -----------------------------------------
+            # Remove empty rows
 
             before_rows = len(df)
 
@@ -35,9 +33,7 @@ class CleanStage(Stage):
                 f"{before_rows - after_rows}"
             )
 
-            # -----------------------------------------
-            # 2. Remove completely empty columns
-            # -----------------------------------------
+            # Remove empty columns
 
             before_columns = len(df.columns)
 
@@ -50,10 +46,7 @@ class CleanStage(Stage):
                 f"{before_columns - after_columns}"
             )
 
-            # -----------------------------------------
-            # 3. Normalize column names
-            # -----------------------------------------
-
+            # Normalize column names
             df.columns = (
                 df.columns
                 .str.strip()
@@ -63,10 +56,7 @@ class CleanStage(Stage):
 
             print("Column names normalized.")
 
-            # -----------------------------------------
-            # 4. Clean string values
-            # -----------------------------------------
-
+            # Clean string values
             string_columns = df.select_dtypes(
                 include=["object", "string"]
             ).columns
