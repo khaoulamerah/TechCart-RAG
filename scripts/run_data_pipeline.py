@@ -2,13 +2,14 @@ import logging
 
 from backend.rag.data_pipelines.context import DataPipelineContext
 from backend.rag.data_pipelines.core import Pipeline
+from backend.rag.data_pipelines.stages.write import WriteStructuredJsonStage
+
 from backend.rag.data_pipelines.stages.clean import CleanAndTagStage
 from backend.rag.data_pipelines.stages.derive import (
     DeriveCategoriesBrandsAttributesStage,
 )
 from backend.rag.data_pipelines.stages.load import LoadRawFilesStage
 from backend.rag.data_pipelines.stages.validate import ValidateRecordsStage
-from backend.rag.data_pipelines.stages.write import WriteStructuredJsonStage
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s | %(levelname)-7s | %(message)s"

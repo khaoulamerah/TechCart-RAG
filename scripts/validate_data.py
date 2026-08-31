@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 STRUCTURED_DIR = PROJECT_ROOT / "data" / "structured"
