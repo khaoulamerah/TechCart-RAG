@@ -28,18 +28,15 @@ def main():
         "data/raw/Intel_CPUs.csv",
     ]
 
-    for dataset in datasets:
+    pipeline = create_pipeline()
 
-        print("\n" + "=" * 60)
-        print(f"Processing: {dataset}")
-        print("=" * 60)
+    result = pipeline.run(datasets)
 
-        pipeline = create_pipeline()
+    print("\n" + "=" * 60)
+    print("Pipeline finished")
+    print("=" * 60)
 
-        result = pipeline.run(dataset)
-
-        print("Pipeline finished")
-        print(result)
+    print(result)
 
 
 if __name__ == "__main__":
