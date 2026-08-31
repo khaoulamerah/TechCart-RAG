@@ -3,7 +3,9 @@ import pandas as pd
 from backend.rag.data_pipelines.context import DataPipelineContext
 from backend.rag.data_pipelines.core import Pipeline
 from backend.rag.data_pipelines.stages.clean import CleanAndTagStage, guess_brand
-from backend.rag.data_pipelines.stages.derive import DeriveCategoriesBrandsAttributesStage
+from backend.rag.data_pipelines.stages.derive import (
+    DeriveCategoriesBrandsAttributesStage,
+)
 from backend.rag.data_pipelines.stages.validate import ValidateRecordsStage
 
 
@@ -19,7 +21,10 @@ def test_clean_and_tag_stage_builds_records_from_a_fake_dataframe():
     # No CSV file needed — we hand-build the "raw" input directly.
     df = pd.DataFrame({"Name": ["NVIDIA RTX 4090"], "VRAM": [24]})
     context = DataPipelineContext()
-    context.raw["fake_gpus.csv"] = (df, {"category": "gpu", "brands": ["NVIDIA", "AMD"]})
+    context.raw["fake_gpus.csv"] = (
+        df,
+        {"category": "gpu", "brands": ["NVIDIA", "AMD"]},
+    )
 
     result = CleanAndTagStage().run(context)
 

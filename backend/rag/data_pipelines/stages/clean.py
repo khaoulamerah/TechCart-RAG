@@ -2,13 +2,11 @@ from backend.rag.data_pipelines.stages.base import Stage
 
 
 class CleanStage(Stage):
-
     def run(self, data):
 
         print("Cleaning data...")
 
         for item in data:
-
             source = item["source"]
             df = item["data"]
 
@@ -28,10 +26,7 @@ class CleanStage(Stage):
 
             after_rows = len(df)
 
-            print(
-                f"Empty rows removed: "
-                f"{before_rows - after_rows}"
-            )
+            print(f"Empty rows removed: {before_rows - after_rows}")
 
             # Remove empty columns
 
@@ -41,38 +36,22 @@ class CleanStage(Stage):
 
             after_columns = len(df.columns)
 
-            print(
-                f"Empty columns removed: "
-                f"{before_columns - after_columns}"
-            )
+            print(f"Empty columns removed: {before_columns - after_columns}")
 
             # Normalize column names
             df.columns = (
-                df.columns
-                .str.strip()
-                .str.lower()
-                .str.replace(" ", "_", regex=False)
+                df.columns.str.strip().str.lower().str.replace(" ", "_", regex=False)
             )
 
             print("Column names normalized.")
 
             # Clean string values
-            string_columns = df.select_dtypes(
-                include=["object", "string"]
-            ).columns
+            string_columns = df.select_dtypes(include=["object", "string"]).columns
 
             for column in string_columns:
+                df[column] = df[column].astype("string").str.strip()
 
-                df[column] = (
-                    df[column]
-                    .astype("string")
-                    .str.strip()
-                )
-
-            print(
-                f"String columns cleaned: "
-                f"{len(string_columns)}"
-            )
+            print(f"String columns cleaned: {len(string_columns)}")
 
             print(f"Rows after cleaning: {len(df)}")
             print(f"Columns after cleaning: {len(df.columns)}")
