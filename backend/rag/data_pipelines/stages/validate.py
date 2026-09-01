@@ -1,15 +1,21 @@
-from backend.rag.data_pipelines.stages.base import Stage
+import pandas as pd
+
+from backend.rag.data_pipelines.stages.base import (
+    PipelineData,
+    Stage,
+)
 
 
 class ValidateStage(Stage):
-    def run(self, data):
+
+    def run(self, data: PipelineData) -> PipelineData:
 
         print("Validating CSV data...")
 
         for item in data:
 
-            source = item["source"]
-            df = item["data"]
+            source: str = item["source"]
+            df: pd.DataFrame = item["data"]
 
             print("\n" + "=" * 60)
             print(f"Validating: {source}")
@@ -17,29 +23,41 @@ class ValidateStage(Stage):
 
             # Check DataFrame is not empty
             if df.empty:
+
                 raise ValueError(
                     f"Dataset is empty: {source}"
                 )
 
             # Check columns exist
             if len(df.columns) == 0:
+
                 raise ValueError(
                     f"Dataset has no columns: {source}"
                 )
 
             # Check column names
-            if any(not column.strip() for column in df.columns):
+            if any(
+                not column.strip()
+                for column in df.columns
+            ):
+
                 raise ValueError(
                     f"Empty column name found: {source}"
                 )
 
             # Check completely empty rows
-            empty_rows = df.isna().all(axis=1).sum()
+            empty_rows: int = (
+                df.isna()
+                .all(axis=1)
+                .sum()
+            )
 
             if empty_rows > 0:
+
                 raise ValueError(
                     f"Dataset still contains "
-                    f"{empty_rows} empty rows: {source}"
+                    f"{empty_rows} empty rows: "
+                    f"{source}"
                 )
 
             print("Validation passed.")
@@ -50,14 +68,15 @@ class ValidateStage(Stage):
 
 
 class MarkdownValidateStage(Stage):
-    def run(self, data):
+
+    def run(self, data: PipelineData) -> PipelineData:
 
         print("Validating Markdown data...")
 
         for item in data:
 
-            source = item["source"]
-            content = item["content"]
+            source: str = item["source"]
+            content: str = item["content"]
 
             print("\n" + "=" * 60)
             print(f"Validating: {source}")
@@ -65,23 +84,30 @@ class MarkdownValidateStage(Stage):
 
             # Check content exists
             if not content:
+
                 raise ValueError(
-                    f"Markdown document is empty: {source}"
+                    f"Markdown document is empty: "
+                    f"{source}"
                 )
 
             # Check content is a string
             if not isinstance(content, str):
+
                 raise TypeError(
-                    f"Markdown content must be a string: {source}"
+                    f"Markdown content must be a "
+                    f"string: {source}"
                 )
 
-            # Remove surrounding whitespace for validation
+            # Remove surrounding whitespace
+            # for validation
             content = content.strip()
 
             # Check again after stripping
             if not content:
+
                 raise ValueError(
-                    f"Markdown document contains only whitespace: {source}"
+                    f"Markdown document contains "
+                    f"only whitespace: {source}"
                 )
 
             print("Validation passed.")

@@ -1,23 +1,27 @@
-import pandas as pd
-
 from pathlib import Path
 
-from backend.rag.data_pipelines.stages.base import Stage
+import pandas as pd
+
+from backend.rag.data_pipelines.stages.base import (
+    FilePaths,
+    PipelineData,
+    Stage,
+)
 
 
 class LoadStage(Stage):
 
-    def run(self, data):
+    def run(self, data: FilePaths) -> PipelineData:
 
         print("Loading data...")
 
-        loaded_data = []
+        loaded_data: PipelineData = []
 
         for file_path in data:
 
             print(f"Loading: {file_path}")
 
-            df = pd.read_csv(file_path)
+            df: pd.DataFrame = pd.read_csv(file_path)
 
             loaded_data.append(
                 {
@@ -31,19 +35,21 @@ class LoadStage(Stage):
 
 class MarkdownLoadStage(Stage):
 
-    def run(self, data):
+    def run(self, data: FilePaths) -> PipelineData:
 
         print("Loading Markdown documents...")
 
-        loaded_documents = []
+        loaded_documents: PipelineData = []
 
         for file_path in data:
 
             print(f"Loading: {file_path}")
 
-            path = Path(file_path)
+            path: Path = Path(file_path)
 
-            content = path.read_text(encoding="utf-8")
+            content: str = path.read_text(
+                encoding="utf-8"
+            )
 
             loaded_documents.append(
                 {

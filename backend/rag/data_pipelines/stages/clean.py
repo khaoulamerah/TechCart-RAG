@@ -1,14 +1,21 @@
-from backend.rag.data_pipelines.stages.base import Stage
+import pandas as pd
+
+from backend.rag.data_pipelines.stages.base import (
+    PipelineData,
+    Stage,
+)
 
 
 class CleanStage(Stage):
-    def run(self, data):
+
+    def run(self, data: PipelineData) -> PipelineData:
 
         print("Cleaning CSV data...")
 
         for item in data:
-            source = item["source"]
-            df = item["data"]
+
+            source: str = item["source"]
+            df: pd.DataFrame = item["data"]
 
             print("\n" + "=" * 60)
             print(f"Cleaning: {source}")
@@ -19,29 +26,46 @@ class CleanStage(Stage):
             print(f"Columns before cleaning: {len(df.columns)}")
 
             # Remove empty rows
-            before_rows = len(df)
+            before_rows: int = len(df)
 
-            df.dropna(how="all", inplace=True)
+            df.dropna(
+                how="all",
+                inplace=True,
+            )
 
-            after_rows = len(df)
+            after_rows: int = len(df)
 
-            print(f"Empty rows removed: {before_rows - after_rows}")
+            print(
+                f"Empty rows removed: "
+                f"{before_rows - after_rows}"
+            )
 
             # Remove empty columns
-            before_columns = len(df.columns)
+            before_columns: int = len(df.columns)
 
-            df.dropna(axis=1, how="all", inplace=True)
+            df.dropna(
+                axis=1,
+                how="all",
+                inplace=True,
+            )
 
-            after_columns = len(df.columns)
+            after_columns: int = len(df.columns)
 
-            print(f"Empty columns removed: {before_columns - after_columns}")
+            print(
+                f"Empty columns removed: "
+                f"{before_columns - after_columns}"
+            )
 
             # Normalize column names
             df.columns = (
                 df.columns
                 .str.strip()
                 .str.lower()
-                .str.replace(" ", "_", regex=False)
+                .str.replace(
+                    " ",
+                    "_",
+                    regex=False,
+                )
             )
 
             print("Column names normalized.")
@@ -52,62 +76,85 @@ class CleanStage(Stage):
             ).columns
 
             for column in string_columns:
+
                 df[column] = (
                     df[column]
                     .astype("string")
                     .str.strip()
                 )
 
-            print(f"String columns cleaned: {len(string_columns)}")
+            print(
+                f"String columns cleaned: "
+                f"{len(string_columns)}"
+            )
 
             print(f"Rows after cleaning: {len(df)}")
-            print(f"Columns after cleaning: {len(df.columns)}")
+            print(
+                f"Columns after cleaning: "
+                f"{len(df.columns)}"
+            )
 
         return data
 
 
 class MarkdownCleanStage(Stage):
-    def run(self, data):
+
+    def run(self, data: PipelineData) -> PipelineData:
 
         print("Cleaning Markdown data...")
 
         for item in data:
 
-            source = item["source"]
-            content = item["content"]
+            source: str = item["source"]
+            content: str = item["content"]
 
             print("\n" + "=" * 60)
             print(f"Cleaning: {source}")
             print("=" * 60)
 
             # Before cleaning
-            print(f"Characters before cleaning: {len(content)}")
+            print(
+                f"Characters before cleaning: "
+                f"{len(content)}"
+            )
 
             # Normalize line endings
-            content = content.replace("\r\n", "\n")
-            content = content.replace("\r", "\n")
+            content = content.replace(
+                "\r\n",
+                "\n",
+            )
 
-            # Remove spaces/tabs at the beginning and end of lines
-            lines = []
+            content = content.replace(
+                "\r",
+                "\n",
+            )
+
+            # Remove spaces/tabs at the beginning
+            # and end of lines
+            lines: list[str] = []
 
             for line in content.split("\n"):
+
                 line = line.strip()
+
                 lines.append(line)
 
             # Remove excessive blank lines
-            cleaned_lines = []
+            cleaned_lines: list[str] = []
 
-            previous_blank = False
+            previous_blank: bool = False
 
             for line in lines:
 
                 if line == "":
+
                     if not previous_blank:
                         cleaned_lines.append(line)
 
                     previous_blank = True
 
                 else:
+
                     cleaned_lines.append(line)
                     previous_blank = False
 
@@ -120,6 +167,9 @@ class MarkdownCleanStage(Stage):
             # Save cleaned content
             item["content"] = content
 
-            print(f"Characters after cleaning: {len(content)}")
+            print(
+                f"Characters after cleaning: "
+                f"{len(content)}"
+            )
 
         return data
