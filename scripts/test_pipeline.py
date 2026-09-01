@@ -1,16 +1,25 @@
 from backend.rag.data_pipelines.pipeline import Pipeline
 
-from backend.rag.data_pipelines.stages.clean import (
-    CleanStage,
-    MarkdownCleanStage,
-)
-from backend.rag.data_pipelines.stages.derive import DeriveStage
 from backend.rag.data_pipelines.stages.load import (
     LoadStage,
     MarkdownLoadStage,
 )
-from backend.rag.data_pipelines.stages.save import SaveStage
-from backend.rag.data_pipelines.stages.validate import ValidateStage
+from backend.rag.data_pipelines.stages.clean import (
+    CleanStage,
+    MarkdownCleanStage,
+)
+from backend.rag.data_pipelines.stages.derive import (
+    DeriveStage,
+    MarkdownDeriveStage,
+)
+from backend.rag.data_pipelines.stages.validate import (
+    ValidateStage,
+    MarkdownValidateStage,
+)
+from backend.rag.data_pipelines.stages.save import (
+    SaveStage,
+    MarkdownSaveStage,
+)
 
 
 def create_csv_pipeline():
@@ -32,7 +41,9 @@ def create_markdown_pipeline():
         stages=[
             MarkdownLoadStage(),
             MarkdownCleanStage(),
-            ValidateStage(),
+            MarkdownValidateStage(),
+            MarkdownDeriveStage(),
+            MarkdownSaveStage(),
         ]
     )
 
