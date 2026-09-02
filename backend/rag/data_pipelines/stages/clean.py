@@ -6,7 +6,11 @@ from backend.rag.data_pipelines.stages.base import (
 )
 
 
-class CleanStage(Stage):
+
+
+
+
+class CSVCleanStage(Stage):
 
     def run(self, data: PipelineData) -> PipelineData:
 

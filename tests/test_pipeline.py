@@ -1,7 +1,7 @@
 from backend.rag.data_pipelines.pipeline import Pipeline
 
 from backend.rag.data_pipelines.stages.clean import (
-    CleanStage,
+    CSVCleanStage,
     MarkdownCleanStage,
 )
 
@@ -33,7 +33,7 @@ def create_csv_pipeline() -> Pipeline:
     return Pipeline(
         stages=[
             LoadStage(),
-            CleanStage(),
+            CSVCleanStage(),
             ValidateStage(),
             DeriveStage(),
             SaveStage(),
