@@ -1,9 +1,6 @@
 from backend.rag.data_pipelines.pipeline import Pipeline
 
-from backend.rag.data_pipelines.stages.clean import (
-    CSVCleanStage,
-    MarkdownCleanStage,
-)
+from backend.rag.data_pipelines.stages.clean import CleanStage
 
 from backend.rag.data_pipelines.stages.derive import (
     DeriveStage,
@@ -27,13 +24,23 @@ from backend.rag.data_pipelines.stages.validate import (
 
 from backend.rag.data_pipelines.stages.base import FilePaths
 
+from backend.rag.data_pipelines.strategies.cleaning.csv import (
+    CsvCleaningStrategy,
+)
+
+from backend.rag.data_pipelines.strategies.cleaning.markdown import (
+    MarkdownCleaningStrategy,
+)
+
 
 def create_csv_pipeline() -> Pipeline:
+
+    cleaning_strategy = CsvCleaningStrategy()
 
     return Pipeline(
         stages=[
             LoadStage(),
-            CSVCleanStage(),
+            CleanStage(cleaning_strategy),
             ValidateStage(),
             DeriveStage(),
             SaveStage(),
@@ -43,10 +50,12 @@ def create_csv_pipeline() -> Pipeline:
 
 def create_markdown_pipeline() -> Pipeline:
 
+    cleaning_strategy = MarkdownCleaningStrategy()
+
     return Pipeline(
         stages=[
             MarkdownLoadStage(),
-            MarkdownCleanStage(),
+            CleanStage(cleaning_strategy),
             MarkdownValidateStage(),
             MarkdownDeriveStage(),
             MarkdownSaveStage(),
@@ -72,6 +81,8 @@ def main() -> None:
         "data/semi_structured/policies/warranty_policy.md",
     ]
 
+    # CSV PIPELINE
+
     print("\n" + "=" * 60)
     print("STARTING CSV PIPELINE")
     print("=" * 60)
@@ -86,13 +97,17 @@ def main() -> None:
 
     print(csv_result)
 
+    # MARKDOWN PIPELINE
+
     print("\n" + "=" * 60)
     print("STARTING MARKDOWN PIPELINE")
     print("=" * 60)
 
     markdown_pipeline: Pipeline = create_markdown_pipeline()
 
-    markdown_result = markdown_pipeline.run(markdown_datasets)
+    markdown_result = markdown_pipeline.run(
+        markdown_datasets
+    )
 
     print("\n" + "=" * 60)
     print("MARKDOWN PIPELINE RESULT")
