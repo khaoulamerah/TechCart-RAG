@@ -1,23 +1,9 @@
 from backend.rag.data_pipelines.pipeline import Pipeline
-
 from backend.rag.data_pipelines.stages.clean import CleanStage
-
-from backend.rag.data_pipelines.stages.derive import (
-    DeriveStage,
-)
-
-from backend.rag.data_pipelines.stages.load import (
-    LoadStage,
-)
-
-from backend.rag.data_pipelines.stages.save import (
-    SaveStage,
-)
-
-from backend.rag.data_pipelines.stages.validate import (
-    ValidateStage,
-)
-
+from backend.rag.data_pipelines.stages.derive import DeriveStage
+from backend.rag.data_pipelines.stages.load import LoadStage
+from backend.rag.data_pipelines.stages.save import SaveStage
+from backend.rag.data_pipelines.stages.validate import ValidateStage
 from backend.rag.data_pipelines.stages.base import FilePaths
 
 from backend.rag.data_pipelines.strategies.cleaning.csv import (
