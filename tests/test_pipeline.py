@@ -17,7 +17,6 @@ from backend.rag.data_pipelines.stages.save import (
 
 from backend.rag.data_pipelines.stages.validate import (
     ValidateStage,
-    MarkdownValidateStage,
 )
 
 from backend.rag.data_pipelines.stages.base import FilePaths
@@ -46,18 +45,27 @@ from backend.rag.data_pipelines.strategies.derive.markdown import (
     MarkdownDeriveStrategy,
 )
 
+from backend.rag.data_pipelines.strategies.validate.csv import (
+    CsvValidationStrategy,
+)
+
+from backend.rag.data_pipelines.strategies.validate.markdown import (
+    MarkdownValidationStrategy,
+)
+
 
 def create_csv_pipeline() -> Pipeline:
 
     loading_strategy = CsvLoadingStrategy()
     cleaning_strategy = CsvCleaningStrategy()
+    validation_strategy = CsvValidationStrategy()
     derive_strategy = CsvDeriveStrategy()
 
     return Pipeline(
         stages=[
             LoadStage(loading_strategy),
             CleanStage(cleaning_strategy),
-            ValidateStage(),
+            ValidateStage(validation_strategy),
             DeriveStage(derive_strategy),
             SaveStage(),
         ]
@@ -68,13 +76,14 @@ def create_markdown_pipeline() -> Pipeline:
 
     loading_strategy = MarkdownLoadingStrategy()
     cleaning_strategy = MarkdownCleaningStrategy()
+    validation_strategy = MarkdownValidationStrategy()
     derive_strategy = MarkdownDeriveStrategy()
 
     return Pipeline(
         stages=[
             LoadStage(loading_strategy),
             CleanStage(cleaning_strategy),
-            MarkdownValidateStage(),
+            ValidateStage(validation_strategy),
             DeriveStage(derive_strategy),
             MarkdownSaveStage(),
         ]

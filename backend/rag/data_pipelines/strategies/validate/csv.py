@@ -1,35 +1,73 @@
-
 import pandas as pd
 
 from backend.rag.data_pipelines.stages.base import (
-    FilePaths,
     PipelineData,
 )
 
-from backend.rag.data_pipelines.strategies.loading.base import (
-    LoadingStrategy,
+from backend.rag.data_pipelines.strategies.validate.base import (
+    ValidationStrategy,
 )
 
 
-class CsvLoadingStrategy(LoadingStrategy):
+class CsvValidationStrategy(ValidationStrategy):
 
-    def load(self, data: FilePaths) -> PipelineData:
+    def validate(
+        self,
+        data: PipelineData,
+    ) -> PipelineData:
 
-        print("Loading CSV data...")
+        print("Validating CSV data...")
 
-        loaded_data: PipelineData = []
+        for item in data:
 
-        for file_path in data:
+            source: str = item["source"]
+            df: pd.DataFrame = item["data"]
 
-            print(f"Loading: {file_path}")
+            print("\n" + "=" * 60)
+            print(f"Validating: {source}")
+            print("=" * 60)
 
-            df: pd.DataFrame = pd.read_csv(file_path)
+            # Check DataFrame is not empty
+            if df.empty:
 
-            loaded_data.append(
-                {
-                    "source": file_path,
-                    "data": df,
-                }
+                raise ValueError(
+                    f"Dataset is empty: {source}"
+                )
+
+            # Check columns exist
+            if len(df.columns) == 0:
+
+                raise ValueError(
+                    f"Dataset has no columns: {source}"
+                )
+
+            # Check column names
+            if any(
+                not column.strip()
+                for column in df.columns
+            ):
+
+                raise ValueError(
+                    f"Empty column name found: {source}"
+                )
+
+            # Check completely empty rows
+            empty_rows: int = (
+                df.isna()
+                .all(axis=1)
+                .sum()
             )
 
-        return loaded_data
+            if empty_rows > 0:
+
+                raise ValueError(
+                    f"Dataset still contains "
+                    f"{empty_rows} empty rows: "
+                    f"{source}"
+                )
+
+            print("Validation passed.")
+            print(f"Rows: {len(df)}")
+            print(f"Columns: {len(df.columns)}")
+
+        return data

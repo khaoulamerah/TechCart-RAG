@@ -1,38 +1,50 @@
-from pathlib import Path
-
 from backend.rag.data_pipelines.stages.base import (
-    FilePaths,
     PipelineData,
 )
 
-from backend.rag.data_pipelines.strategies.loading.base import (
-    LoadingStrategy,
+from backend.rag.data_pipelines.strategies.validate.base import (
+    ValidationStrategy,
 )
 
 
-class MarkdownLoadingStrategy(LoadingStrategy):
+class MarkdownValidationStrategy(ValidationStrategy):
 
-    def load(self, data: FilePaths) -> PipelineData:
+    def validate(
+        self,
+        data: PipelineData,
+    ) -> PipelineData:
 
-        print("Loading Markdown documents...")
+        print("Validating Markdown data...")
 
-        loaded_documents: PipelineData = []
+        for item in data:
 
-        for file_path in data:
+            source: str = item["source"]
+            content: str = item["content"]
 
-            print(f"Loading: {file_path}")
+            print("\n" + "=" * 60)
+            print(f"Validating: {source}")
+            print("=" * 60)
 
-            path: Path = Path(file_path)
+            # Check content type first
+            if not isinstance(content, str):
 
-            content: str = path.read_text(
-                encoding="utf-8"
-            )
+                raise TypeError(
+                    f"Markdown content must be a "
+                    f"string: {source}"
+                )
 
-            loaded_documents.append(
-                {
-                    "source": file_path,
-                    "content": content,
-                }
-            )
+            # Remove surrounding whitespace
+            content = content.strip()
 
-        return loaded_documents
+            # Check content is not empty
+            if not content:
+
+                raise ValueError(
+                    f"Markdown document is empty: "
+                    f"{source}"
+                )
+
+            print("Validation passed.")
+            print(f"Characters: {len(content)}")
+
+        return data

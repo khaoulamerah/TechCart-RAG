@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class LoadingStrategy(ABC):
+class ValidationStrategy(ABC):
 
     @abstractmethod
-    def load(self, data: Any) -> Any:
+    def validate(self, data: Any) -> Any:
         pass
