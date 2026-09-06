@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class CleaningStrategy(ABC):
+class DeriveStrategy(ABC):
 
     @abstractmethod
-    def clean(self, data: Any) -> Any:
+    def derive(self, data: Any) -> Any:
         pass

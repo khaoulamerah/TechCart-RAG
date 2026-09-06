@@ -1,76 +1,64 @@
-from backend.rag.data_pipelines.strategies.cleaning.base import (
-    CleaningStrategy,
+from backend.rag.data_pipelines.stages.base import (
+    PipelineData,
+)
+
+from backend.rag.data_pipelines.strategies.derive.base import (
+    DeriveStrategy,
 )
 
 
-class MarkdownCleaningStrategy(CleaningStrategy):
+class MarkdownDeriveStrategy(DeriveStrategy):
 
-    def clean(self, data: str) -> str:
+    def derive(
+        self,
+        data: PipelineData,
+    ) -> PipelineData:
 
-        content = data
+        print("Deriving Markdown data...")
 
-        print("Cleaning Markdown data...")
+        for item in data:
 
-        print(
-            f"Characters before cleaning: "
-            f"{len(content)}"
-        )
+            source: str = item["source"]
+            content: str = item["content"]
 
-        # Normalize line endings
+            print("\n" + "=" * 60)
+            print(f"Deriving: {source}")
+            print("=" * 60)
 
-        content = content.replace(
-            "\r\n",
-            "\n",
-        )
+            # Extract title
+            title: str | None = None
 
-        content = content.replace(
-            "\r",
-            "\n",
-        )
+            for line in content.splitlines():
 
-        # Remove spaces/tabs at the beginning
-        # and end of lines
+                line = line.strip()
 
-        lines: list[str] = []
+                if line.startswith("# "):
 
-        for line in content.split("\n"):
+                    title = line[2:].strip()
 
-            line = line.strip()
+                    break
 
-            lines.append(line)
+            item["title"] = title
 
-        # Remove excessive blank lines
+            # Extract sections
+            sections: list[str] = []
 
-        cleaned_lines: list[str] = []
+            for line in content.splitlines():
 
-        previous_blank: bool = False
+                line = line.strip()
 
-        for line in lines:
+                if line.startswith("## "):
 
-            if line == "":
+                    section: str = line[3:].strip()
 
-                if not previous_blank:
-                    cleaned_lines.append(line)
+                    sections.append(section)
 
-                previous_blank = True
+            item["sections"] = sections
 
-            else:
+            print(f"Title: {title}")
+            print(
+                f"Sections found: "
+                f"{len(sections)}"
+            )
 
-                cleaned_lines.append(line)
-
-                previous_blank = False
-
-        # Rebuild document
-
-        content = "\n".join(cleaned_lines)
-
-        # Remove whitespace at document boundaries
-
-        content = content.strip()
-
-        print(
-            f"Characters after cleaning: "
-            f"{len(content)}"
-        )
-
-        return content
+        return data

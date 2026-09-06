@@ -1,93 +1,55 @@
 import pandas as pd
 
-from backend.rag.data_pipelines.strategies.cleaning.base import (
-    CleaningStrategy,
+from backend.rag.data_pipelines.stages.base import (
+    PipelineData,
+)
+
+from backend.rag.data_pipelines.strategies.derive.base import (
+    DeriveStrategy,
 )
 
 
-class CsvCleaningStrategy(CleaningStrategy):
+class CsvDeriveStrategy(DeriveStrategy):
 
-    def clean(self, data: pd.DataFrame) -> pd.DataFrame:
+    def derive(
+        self,
+        data: PipelineData,
+    ) -> PipelineData:
 
-        print("Cleaning CSV data...")
+        print("Deriving CSV data...")
 
-        df = data.copy()
+        for item in data:
 
-        # Before cleaning
-        print(f"Rows before cleaning: {len(df)}")
-        print(f"Columns before cleaning: {len(df.columns)}")
+            source: str = item["source"]
+            df: pd.DataFrame = item["data"]
 
-        # Remove empty rows
+            print("\n" + "=" * 60)
+            print(f"Deriving: {source}")
+            print("=" * 60)
 
-        before_rows: int = len(df)
+            def row_to_text(row: pd.Series) -> str:
 
-        df.dropna(
-            how="all",
-            inplace=True,
-        )
+                parts: list[str] = []
 
-        after_rows: int = len(df)
+                for column, value in row.items():
 
-        print(
-            f"Empty rows removed: "
-            f"{before_rows - after_rows}"
-        )
+                    if value is not None:
 
-        # Remove empty columns
+                        value = str(value).strip()
 
-        before_columns: int = len(df.columns)
+                        if value:
+                            parts.append(
+                                f"{column}: {value}"
+                            )
 
-        df.dropna(
-            axis=1,
-            how="all",
-            inplace=True,
-        )
+                return ". ".join(parts)
 
-        after_columns: int = len(df.columns)
-
-        print(
-            f"Empty columns removed: "
-            f"{before_columns - after_columns}"
-        )
-
-        # Normalize column names
-
-        df.columns = (
-            df.columns
-            .str.strip()
-            .str.lower()
-            .str.replace(
-                " ",
-                "_",
-                regex=False,
-            )
-        )
-
-        print("Column names normalized.")
-
-        # Clean string values
-
-        string_columns = df.select_dtypes(
-            include=["object", "string"]
-        ).columns
-
-        for column in string_columns:
-
-            df[column] = (
-                df[column]
-                .astype("string")
-                .str.strip()
+            df["text"] = df.apply(
+                row_to_text,
+                axis=1,
             )
 
-        print(
-            f"String columns cleaned: "
-            f"{len(string_columns)}"
-        )
+            print("Created 'text' column.")
+            print(f"Rows: {len(df)}")
 
-        print(f"Rows after cleaning: {len(df)}")
-        print(
-            f"Columns after cleaning: "
-            f"{len(df.columns)}"
-        )
-
-        return df
+        return data
