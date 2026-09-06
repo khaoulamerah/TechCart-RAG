@@ -1,93 +1,53 @@
+from pathlib import Path
+
 import pandas as pd
 
-from backend.rag.data_pipelines.strategies.cleaning.base import (
-    CleaningStrategy,
+from backend.rag.data_pipelines.stages.base import (
+    PipelineData,
+)
+
+from backend.rag.data_pipelines.strategies.save.base import (
+    SaveStrategy,
 )
 
 
-class CsvCleaningStrategy(CleaningStrategy):
+class CsvSaveStrategy(SaveStrategy):
 
-    def clean(self, data: pd.DataFrame) -> pd.DataFrame:
+    def __init__(
+        self,
+        output_dir: str = "data/processed",
+    ) -> None:
 
-        print("Cleaning CSV data...")
+        self.output_dir: Path = Path(output_dir)
 
-        df = data.copy()
+    def save(
+        self,
+        data: PipelineData,
+    ) -> PipelineData:
 
-        # Before cleaning
-        print(f"Rows before cleaning: {len(df)}")
-        print(f"Columns before cleaning: {len(df.columns)}")
+        print("Saving CSV data...")
 
-        # Remove empty rows
-
-        before_rows: int = len(df)
-
-        df.dropna(
-            how="all",
-            inplace=True,
+        self.output_dir.mkdir(
+            parents=True,
+            exist_ok=True,
         )
 
-        after_rows: int = len(df)
+        for item in data:
 
-        print(
-            f"Empty rows removed: "
-            f"{before_rows - after_rows}"
-        )
+            source: str = item["source"]
+            df: pd.DataFrame = item["data"]
 
-        # Remove empty columns
+            filename: str = Path(source).name
 
-        before_columns: int = len(df.columns)
-
-        df.dropna(
-            axis=1,
-            how="all",
-            inplace=True,
-        )
-
-        after_columns: int = len(df.columns)
-
-        print(
-            f"Empty columns removed: "
-            f"{before_columns - after_columns}"
-        )
-
-        # Normalize column names
-
-        df.columns = (
-            df.columns
-            .str.strip()
-            .str.lower()
-            .str.replace(
-                " ",
-                "_",
-                regex=False,
-            )
-        )
-
-        print("Column names normalized.")
-
-        # Clean string values
-
-        string_columns = df.select_dtypes(
-            include=["object", "string"]
-        ).columns
-
-        for column in string_columns:
-
-            df[column] = (
-                df[column]
-                .astype("string")
-                .str.strip()
+            output_path: Path = (
+                self.output_dir / filename
             )
 
-        print(
-            f"String columns cleaned: "
-            f"{len(string_columns)}"
-        )
+            df.to_csv(
+                output_path,
+                index=False,
+            )
 
-        print(f"Rows after cleaning: {len(df)}")
-        print(
-            f"Columns after cleaning: "
-            f"{len(df.columns)}"
-        )
+            print(f"Saved: {output_path}")
 
-        return df
+        return data
