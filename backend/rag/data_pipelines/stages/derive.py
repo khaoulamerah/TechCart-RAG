@@ -2,20 +2,24 @@ from backend.rag.data_pipelines.stages.base import (
     PipelineData,
     Stage,
 )
-
 from backend.rag.data_pipelines.strategies.derive.base import (
     DeriveStrategy,
 )
+from backend.rag.data_pipelines.strategies.derive.strategies import (
+    CsvDeriveStrategy,
+    MarkdownDeriveStrategy,
+)
+from backend.rag.data_pipelines.utils import DataType
 
 
 class DeriveStage(Stage):
 
-    def __init__(
-        self,
-        strategy: DeriveStrategy,
-    ) -> None:
-
-        self.strategy = strategy
+    def __init__(self) -> None:
+        self.strategy: DeriveStrategy
+        self.strategys = {
+            DataType.CSV: CsvDeriveStrategy(),
+            DataType.MD: MarkdownDeriveStrategy(),
+        }
 
     def run(
         self,

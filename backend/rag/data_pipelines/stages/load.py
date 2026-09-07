@@ -3,20 +3,24 @@ from backend.rag.data_pipelines.stages.base import (
     PipelineData,
     Stage,
 )
-
 from backend.rag.data_pipelines.strategies.loading.base import (
     LoadingStrategy,
 )
+from backend.rag.data_pipelines.strategies.loading.strategies import (
+    CsvLoadingStrategy,
+    MarkdownLoadingStrategy,
+)
+from backend.rag.data_pipelines.utils import DataType
 
 
 class LoadStage(Stage):
 
-    def __init__(
-        self,
-        strategy: LoadingStrategy,
-    ) -> None:
-
-        self.strategy = strategy
+    def __init__(self) -> None:
+        self.strategy: LoadingStrategy
+        self.strategys = {
+            DataType.CSV: CsvLoadingStrategy(),
+            DataType.MD: MarkdownLoadingStrategy(),
+        }
 
     def run(
         self,

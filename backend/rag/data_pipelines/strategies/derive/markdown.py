@@ -1,7 +1,6 @@
 from backend.rag.data_pipelines.stages.base import (
     PipelineData,
 )
-
 from backend.rag.data_pipelines.strategies.derive.base import (
     DeriveStrategy,
 )

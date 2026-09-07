@@ -2,20 +2,23 @@ from backend.rag.data_pipelines.stages.base import (
     PipelineData,
     Stage,
 )
-
 from backend.rag.data_pipelines.strategies.cleaning.base import (
     CleaningStrategy,
 )
+from backend.rag.data_pipelines.strategies.cleaning.strategies import (
+    CsvCleaningStrategy,
+    MarkdownCleaningStrategy,
+)
+from backend.rag.data_pipelines.utils import DataType
 
 
 class CleanStage(Stage):
-
-    def __init__(
-        self,
-        strategy: CleaningStrategy,
-    ) -> None:
-
-        self.strategy = strategy
+    def __init__(self) -> None:
+        self.strategy: CleaningStrategy
+        self.strategys = {
+            DataType.CSV: CsvCleaningStrategy(),
+            DataType.MD: MarkdownCleaningStrategy(),
+        }
 
     def run(
         self,

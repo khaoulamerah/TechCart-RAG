@@ -1,50 +1,41 @@
 from backend.rag.data_pipelines.pipeline import Pipeline
+from backend.rag.data_pipelines.stages.base import FilePaths
 from backend.rag.data_pipelines.stages.clean import CleanStage
 from backend.rag.data_pipelines.stages.derive import DeriveStage
 from backend.rag.data_pipelines.stages.load import LoadStage
 from backend.rag.data_pipelines.stages.save import SaveStage
 from backend.rag.data_pipelines.stages.validate import ValidateStage
-from backend.rag.data_pipelines.stages.base import FilePaths
-
 from backend.rag.data_pipelines.strategies.cleaning.csv import (
     CsvCleaningStrategy,
 )
-
 from backend.rag.data_pipelines.strategies.cleaning.markdown import (
     MarkdownCleaningStrategy,
 )
-
-from backend.rag.data_pipelines.strategies.loading.csv import (
-    CsvLoadingStrategy,
-)
-
-from backend.rag.data_pipelines.strategies.loading.markdown import (
-    MarkdownLoadingStrategy,
-)
-
 from backend.rag.data_pipelines.strategies.derive.csv import (
     CsvDeriveStrategy,
 )
-
 from backend.rag.data_pipelines.strategies.derive.markdown import (
     MarkdownDeriveStrategy,
 )
-
+from backend.rag.data_pipelines.strategies.loading.csv import (
+    CsvLoadingStrategy,
+)
+from backend.rag.data_pipelines.strategies.loading.markdown import (
+    MarkdownLoadingStrategy,
+)
+from backend.rag.data_pipelines.strategies.save.csv import (
+    CsvSaveStrategy,
+)
+from backend.rag.data_pipelines.strategies.save.markdown import (
+    MarkdownSaveStrategy,
+)
 from backend.rag.data_pipelines.strategies.validate.csv import (
     CsvValidationStrategy,
 )
-
 from backend.rag.data_pipelines.strategies.validate.markdown import (
     MarkdownValidationStrategy,
 )
 
-from backend.rag.data_pipelines.strategies.save.csv import (
-    CsvSaveStrategy,
-)
-
-from backend.rag.data_pipelines.strategies.save.markdown import (
-    MarkdownSaveStrategy,
-)
 
 def create_csv_pipeline() -> Pipeline:
 

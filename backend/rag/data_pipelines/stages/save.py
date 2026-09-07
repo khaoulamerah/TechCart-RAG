@@ -2,20 +2,24 @@ from backend.rag.data_pipelines.stages.base import (
     PipelineData,
     Stage,
 )
-
 from backend.rag.data_pipelines.strategies.save.base import (
     SaveStrategy,
 )
+from backend.rag.data_pipelines.strategies.save.strategies import (
+    CsvSaveStrategy,
+    MarkdownSaveStrategy,
+)
+from backend.rag.data_pipelines.utils import DataType
 
 
 class SaveStage(Stage):
 
-    def __init__(
-        self,
-        strategy: SaveStrategy,
-    ) -> None:
-
-        self.strategy = strategy
+    def __init__(self) -> None:
+        self.strategy: SaveStrategy
+        self.strategys = {
+            DataType.CSV: CsvSaveStrategy(),
+            DataType.MD: MarkdownSaveStrategy(),
+        }
 
     def run(
         self,

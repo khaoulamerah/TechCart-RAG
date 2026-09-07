@@ -5,7 +5,6 @@ import pandas as pd
 from backend.rag.data_pipelines.stages.base import (
     PipelineData,
 )
-
 from backend.rag.data_pipelines.strategies.save.base import (
     SaveStrategy,
 )

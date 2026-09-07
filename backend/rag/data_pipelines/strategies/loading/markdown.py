@@ -4,7 +4,6 @@ from backend.rag.data_pipelines.stages.base import (
     FilePaths,
     PipelineData,
 )
-
 from backend.rag.data_pipelines.strategies.loading.base import (
     LoadingStrategy,
 )
