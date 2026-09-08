@@ -1,10 +1,5 @@
-from backend.rag.ingestion.chunking.base import (
-    ChunkingStrategy,
-)
-from backend.rag.ingestion.document import (
-    Chunk,
-    Document,
-)
+from backend.rag.ingestion.chunking.base import ChunkingStrategy
+from backend.rag.ingestion.document import Chunk, Document
 
 
 class Chunker:
@@ -16,9 +11,9 @@ class Chunker:
         chunk_overlap: int = 100,
     ) -> None:
 
-        self.strategy = strategy
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
+        self.strategy: ChunkingStrategy = strategy
+        self.chunk_size: int = chunk_size
+        self.chunk_overlap: int = chunk_overlap
 
     def chunk(
         self,
