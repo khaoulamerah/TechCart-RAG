@@ -1,4 +1,6 @@
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
+from typing import Any
 from uuid import uuid4
 
 from fastapi import HTTPException, status
@@ -8,10 +10,12 @@ from backend.services.conversation import ConversationService
 
 
 def utcnow() -> datetime:
+    """Return the current UTC datetime."""
     return datetime.now(timezone.utc)
 
 
 class ChatService:
+
     def __init__(
         self,
         conversation_service: ConversationService,
@@ -20,21 +24,20 @@ class ChatService:
         self.conversation_service = conversation_service
         self.llm_provider = llm_provider
 
-    async def send_message(
+    async def prepare_conversation(
         self,
         message: str,
         session_id: str | None,
         conversation_id: str | None,
-    ) -> dict:
-        # ── Validation ───────────────────────────────────
+    ) -> dict[str, Any]:
         cleaned_message = (message or "").strip()
+
         if not cleaned_message:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Message cannot be empty.",
             )
 
-        # ── Resolve the conversation ─────────────────────
         if conversation_id:
             conversation = await self.conversation_service.get_conversation(
                 conversation_id
@@ -46,30 +49,68 @@ class ChatService:
             )
             conversation_id = conversation["id"]
 
-        resolved_session_id = conversation["session_id"]
+        return {
+            "cleaned_message": cleaned_message,
+            "conversation_id": conversation_id,
+            "session_id": conversation["session_id"],
+        }
 
-        # ── Save the user's message ──────────────────────
+    async def stream_message(
+        self,
+        cleaned_message: str,
+        conversation_id: str,
+        session_id: str,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """
+        Pure streaming part. Must only be called AFTER
+        prepare_conversation() has succeeded — no validation happens
+        here anymore, only: save user message, stream LLM tokens,
+        save assistant message.
+        """
         await self.conversation_service.add_message(
-            conversation_id, {"role": "user", "content": cleaned_message}
+            conversation_id,
+            {"role": "user", "content": cleaned_message},
         )
+
+        yield {
+            "type": "metadata",
+            "conversation_id": conversation_id,
+            "session_id": session_id,
+        }
+
+        full_response: list[str] = []
 
         try:
-            reply_text = await self.llm_provider.generate(cleaned_message)
-        except LLMProviderError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"The AI model is currently unavailable: {exc}",
-            ) from exc
+            async for chunk in self.llm_provider.generate_stream(cleaned_message):
+                if not chunk:
+                    continue
+                full_response.append(chunk)
+                yield {"type": "token", "content": chunk}
 
-        # ── Save the assistant's message ─────────────────
+        except LLMProviderError:
+            yield {
+                "type": "error",
+                "message": "The AI model is currently unavailable.",
+            }
+            return
+
+        reply_text = "".join(full_response).strip()
+
+        if not reply_text:
+            yield {
+                "type": "error",
+                "message": "The AI model returned an empty response.",
+            }
+            return
+
         await self.conversation_service.add_message(
-            conversation_id, {"role": "assistant", "content": reply_text}
+            conversation_id,
+            {"role": "assistant", "content": reply_text},
         )
 
-        return {
+        yield {
+            "type": "done",
             "conversation_id": conversation_id,
-            "session_id": resolved_session_id,
-            "reply": reply_text,
-            "created_at": utcnow(),
-            "metadata": {},
+            "session_id": session_id,
+            "created_at": utcnow().isoformat(),
         }

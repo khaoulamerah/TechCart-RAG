@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 
 
 class LLMProviderError(Exception):
@@ -6,6 +7,8 @@ class LLMProviderError(Exception):
 
 
 class LLMProvider(ABC):
+    """Abstract interface for LLM providers."""
+
     @abstractmethod
-    async def generate(self, message: str) -> str:
+    def generate_stream(self, message: str) -> AsyncIterator[str]:
         raise NotImplementedError
