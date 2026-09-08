@@ -38,6 +38,12 @@ services:
     networks:
       - techcart_network
 
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
   # ────────────────────────────────────────────────────────────
   # SERVICE 2 : QDRANT
   # Stores vector embeddings (vector search)
@@ -70,6 +76,12 @@ services:
 
     networks:
       - techcart_network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   # ────────────────────────────────────────────────────────────
   # SERVICE 3 : OLLAMA
@@ -105,6 +117,12 @@ services:
 
     networks:
       - techcart_network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   # ────────────────────────────────────────────────────────────
   # SERVICE 4 : BACKEND (FastAPI)
@@ -147,6 +165,12 @@ services:
 
     networks:
       - techcart_network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   # ────────────────────────────────────────────────────────────
   # SERVICE 5 : FRONTEND (NGINX)
@@ -169,6 +193,12 @@ services:
 
     networks:
       - techcart_network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   # ────────────────────────────────────────────────────────────
   # SERVICE : POSTGRESQL
