@@ -3,16 +3,18 @@ from pathlib import Path
 from typing import Any
 
 from backend.rag.ingestion.chunker import Chunker
-from backend.rag.ingestion.chunking.semantic import (
-    ChonkieSemanticChunkingStrategy,
+from backend.rag.ingestion.chunking.markdown import (
+    MarkdownChunkingStrategy,
 )
 from backend.rag.ingestion.document import Chunk, Document
 
 
+# Paths
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 MARKDOWN_DIR = (
-    PROJECT_ROOT/ "data"/ "processed"/ "markdown"
+    PROJECT_ROOT
+    / "data"/ "processed"/ "markdown"
 )
 
 OUTPUT_DIR = (
@@ -22,7 +24,7 @@ OUTPUT_DIR = (
 
 OUTPUT_FILE = (
     OUTPUT_DIR
-    / "semantic_chunks.json"
+    / "markdown_chunks.json"
 )
 
 
@@ -47,7 +49,6 @@ def load_markdown_documents() -> list[Document]:
             encoding="utf-8"
         ).strip()
 
-        # Ignore empty files
         if not content:
             print(
                 f"Skipping empty file: "
@@ -55,11 +56,8 @@ def load_markdown_documents() -> list[Document]:
             )
             continue
 
-        # Use filename without .md as document ID
-        document_id = file_path.stem
-
         document = Document(
-            id=document_id,
+            id=file_path.stem,
             content=content,
             metadata={
                 "source": str(
@@ -76,29 +74,13 @@ def load_markdown_documents() -> list[Document]:
     return documents
 
 
-# Convert chunks to JSON
-
-def chunks_to_dict(
-    chunks: list[Chunk],
-) -> list[dict[str, Any]]:
-
-    return [
-        {
-            "id": chunk.id,
-            "document_id": chunk.document_id,
-            "text": chunk.text,
-            "metadata": chunk.metadata,
-        }
-        for chunk in chunks
-    ]
-
-
 # Save chunks
+
 def save_chunks(
     chunks: list[Chunk],
 ) -> None:
     """
-    Save generated chunks as JSON.
+    Save generated chunks to JSON.
     """
 
     OUTPUT_DIR.mkdir(
@@ -106,7 +88,18 @@ def save_chunks(
         exist_ok=True,
     )
 
-    chunks_data = chunks_to_dict(chunks)
+    chunks_data: list[dict[str, Any]] = []
+
+    for chunk in chunks:
+
+        chunks_data.append(
+            {
+                "id": chunk.id,
+                "document_id": chunk.document_id,
+                "text": chunk.text,
+                "metadata": chunk.metadata,
+            }
+        )
 
     OUTPUT_FILE.write_text(
         json.dumps(
@@ -119,11 +112,11 @@ def save_chunks(
 
     print()
     print("=" * 70)
-    print("CHUNKS SAVED")
+    print("OUTPUT")
     print("=" * 70)
 
     print(
-        f"Output file: {OUTPUT_FILE}"
+        f"Saved to: {OUTPUT_FILE}"
     )
 
     print(
@@ -134,16 +127,8 @@ def save_chunks(
 def main() -> None:
 
     print("=" * 70)
-    print("CHONKIE SEMANTIC CHUNKING TEST")
+    print("MARKDOWN STRUCTURED CHUNKING TEST")
     print("=" * 70)
-
-    print()
-    print(
-        f"Markdown directory:"
-    )
-    print(
-        f"  {MARKDOWN_DIR}"
-    )
 
     # Load documents
     documents = load_markdown_documents()
@@ -153,19 +138,17 @@ def main() -> None:
         f"Documents loaded: {len(documents)}"
     )
 
-    # Create Chonkie strategy
-    strategy = ChonkieSemanticChunkingStrategy(
-        chunk_size=512,
+    # Create strategy
+    strategy = MarkdownChunkingStrategy(
+        chunk_size=1000,
     )
 
     # Create Chunker
-
     chunker = Chunker(
         strategy=strategy,
     )
 
     # Process documents
-
     all_chunks: list[Chunk] = []
 
     for document in documents:
@@ -181,13 +164,13 @@ def main() -> None:
         )
         print("=" * 70)
 
-        chunks = chunker.chunk(document)
+        chunks = chunker.chunk(
+            document
+        )
 
         print(
             f"Chunks generated: {len(chunks)}"
         )
-
-        # Display generated chunks
 
         for chunk in chunks:
 
@@ -199,31 +182,26 @@ def main() -> None:
             )
 
             print(
-                f"Document ID: "
-                f"{chunk.document_id}"
-            )
-
-            print(
                 f"Position: "
                 f"{chunk.metadata['position']}"
             )
 
             print(
-                f"Source: "
-                f"{chunk.metadata['source']}"
+                f"Length: "
+                f"{len(chunk.text)} characters"
             )
 
             print()
-            print(
-                f"Text:\n{chunk.text}"
-            )
+
+            print(chunk.text)
 
         all_chunks.extend(chunks)
 
-
+    # Save results
     save_chunks(all_chunks)
 
 
 
 if __name__ == "__main__":
     main()
+

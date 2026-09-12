@@ -6,9 +6,7 @@ from typing import Any
 class Document:
     id: str
     content: str
-    metadata: dict[str, Any] = field(
-        default_factory=dict
-    )
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -16,6 +14,4 @@ class Chunk:
     id: str
     document_id: str
     text: str
-    metadata: dict[str, Any] = field(
-        default_factory=dict
-    )
+    metadata: dict[str, Any] = field(default_factory=dict)
