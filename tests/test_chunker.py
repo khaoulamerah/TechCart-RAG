@@ -1,117 +1,74 @@
-from pathlib import Path
-
-from backend.config.settings import settings
 from backend.rag.ingestion.chunker import Chunker
-from backend.rag.ingestion.chunking.character import (
-    CharacterChunkingStrategy,
+from backend.rag.ingestion.chunking.chonkie import (
+    ChonkieSemanticChunkingStrategy,
 )
 from backend.rag.ingestion.document import Document
 
 
-MARKDOWN_FILES: list[str] = [
-    "data/processed/markdown/faq.md",
-    "data/processed/markdown/gpu_buying_guide.md",
-    "data/processed/markdown/payment_policy.md",
-    "data/processed/markdown/return_policy.md",
-    "data/processed/markdown/shipping_policy.md",
-    "data/processed/markdown/store_info.md",
-    "data/processed/markdown/warranty_policy.md",
-]
-
-
-def load_document(file_path: str) -> Document:
-    """Load one Markdown file and create a Document object."""
-
-    path = Path(file_path)
-
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Markdown file not found: {file_path}"
-        )
-
-    content: str = path.read_text(encoding="utf-8")
+def main() -> None:
 
     document = Document(
-        id=path.stem,
-        content=content,
+        id="test_document",
+        content=(
+            """
+            The RTX 4070 is a graphics card based on
+            the Ada Lovelace architecture. It has 12 GB
+            of GDDR6X memory and is suitable for gaming
+            and artificial intelligence workloads.
+
+            The TechCart store provides several delivery
+            options for customers. Standard delivery
+            usually takes between three and five business
+            days. Customers can track their orders from
+            their account.
+
+            Customers can pay using Visa, Mastercard,
+            or other supported payment methods.
+            """
+        ),
         metadata={
-            "source": file_path,
-            "document_type": path.parent.name,
+            "source": "test.md",
+            "document_type": "test",
         },
     )
 
-    return document
-
-
-def main() -> None:
-
-    print("=" * 60)
-    print("MARKDOWN CHUNKING TEST")
-    print("=" * 60)
-
-    print(f"Chunk size: {settings.CHUNK_SIZE}")
-    print(f"Chunk overlap: {settings.CHUNK_OVERLAP}")
-
-    strategy = CharacterChunkingStrategy()
+    strategy = ChonkieSemanticChunkingStrategy(
+        chunk_size=512,
+    )
 
     chunker = Chunker(
         strategy=strategy,
-        chunk_size=settings.CHUNK_SIZE,
-        chunk_overlap=settings.CHUNK_OVERLAP,
     )
 
-    total_chunks: int = 0
+    chunks = chunker.chunk(document)
 
-    for file_path in MARKDOWN_FILES:
+    print(
+        f"Document: {document.id}"
+    )
 
-        print("\n" + "=" * 60)
-        print(f"Processing: {file_path}")
-        print("=" * 60)
+    print(
+        f"Chunks generated: {len(chunks)}"
+    )
 
-        document = load_document(file_path)
+    for chunk in chunks:
 
-        print(f"Document ID: {document.id}")
-        print(f"Document type: {document.metadata['document_type']}")
-        print(f"Content length: {len(document.content)} characters")
+        print("\n" + "=" * 70)
 
-        chunks = chunker.chunk(document)
+        print(f"ID: {chunk.id}")
 
-        print(f"Chunks generated: {len(chunks)}")
+        print(
+            f"Document ID: "
+            f"{chunk.document_id}"
+        )
 
-        total_chunks += len(chunks)
+        print(
+            f"Position: "
+            f"{chunk.metadata['position']}"
+        )
 
-        for chunk in chunks:
-
-            print("\n" + "-" * 60)
-
-            print(f"Chunk ID: {chunk.id}")
-
-            print(
-                f"Document ID: "
-                f"{chunk.document_id}"
-            )
-
-            print(
-                f"Position: "
-                f"{chunk.metadata['position']}"
-            )
-
-            print(
-                f"Source: "
-                f"{chunk.metadata['source']}"
-            )
-
-            print(
-                f"Text:\n"
-                f"{chunk.text}"
-            )
-
-    print("\n" + "=" * 60)
-    print("CHUNKING SUMMARY")
-    print("=" * 60)
-
-    print(f"Documents processed: {len(MARKDOWN_FILES)}")
-    print(f"Total chunks generated: {total_chunks}")
+        print(
+            f"Text:\n{chunk.text}"
+        )
 
 
 if __name__ == "__main__":

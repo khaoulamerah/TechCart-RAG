@@ -7,21 +7,12 @@ class Chunker:
     def __init__(
         self,
         strategy: ChunkingStrategy,
-        chunk_size: int = 512,
-        chunk_overlap: int = 100,
     ) -> None:
-
-        self.strategy: ChunkingStrategy = strategy
-        self.chunk_size: int = chunk_size
-        self.chunk_overlap: int = chunk_overlap
+        self.strategy = strategy
 
     def chunk(
         self,
         document: Document,
     ) -> list[Chunk]:
 
-        return self.strategy.chunk(
-            document=document,
-            chunk_size=self.chunk_size,
-            chunk_overlap=self.chunk_overlap,
-        )
+        return self.strategy.chunk(document)
