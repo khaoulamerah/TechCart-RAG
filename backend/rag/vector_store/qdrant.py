@@ -1,35 +1,51 @@
 from typing import Any
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import (
+    Distance,
+    PointStruct,
+    VectorParams,
+)
 
 from backend.rag.vector_store.base import VectorStore
 
 
 class QdrantVectorStore(VectorStore):
-    """Vector store implementation using Qdrant."""
-
     def __init__(
         self,
         host: str = "localhost",
         port: int = 6333,
         collection_name: str = "techcart_products",
     ) -> None:
+
+        if not collection_name:
+            raise ValueError(
+                "collection_name cannot be empty."
+            )
+
         self.client = QdrantClient(
             host=host,
             port=port,
         )
+
         self.collection_name = collection_name
 
-    def create_collection(self, vector_size: int) -> None:
-        """Create the Qdrant collection if it does not exist."""
+    def create_collection(
+        self,
+        vector_size: int,
+    ) -> None:
+
+        if vector_size <= 0:
+            raise ValueError(
+                "vector_size must be greater than 0."
+            )
 
         collections = self.client.get_collections()
 
-        collection_names = [
+        collection_names = {
             collection.name
             for collection in collections.collections
-        ]
+        }
 
         if self.collection_name in collection_names:
             return
@@ -48,7 +64,6 @@ class QdrantVectorStore(VectorStore):
         vectors: list[list[float]],
         payloads: list[dict[str, Any]],
     ) -> None:
-        """Insert or update vectors and their payloads."""
 
         if not (
             len(ids)
@@ -56,16 +71,20 @@ class QdrantVectorStore(VectorStore):
             == len(payloads)
         ):
             raise ValueError(
-                "ids, vectors and payloads must have the same length."
+                "ids, vectors and payloads "
+                "must have the same length."
             )
+
+        if not ids:
+            return
 
         points = [
             PointStruct(
-                id=chunk_id,
+                id=point_id,
                 vector=vector,
                 payload=payload,
             )
-            for chunk_id, vector, payload in zip(
+            for point_id, vector, payload in zip(
                 ids,
                 vectors,
                 payloads,
@@ -82,7 +101,16 @@ class QdrantVectorStore(VectorStore):
         query_vector: list[float],
         limit: int = 5,
     ) -> list[dict[str, Any]]:
-        """Search for the most similar vectors."""
+ 
+        if not query_vector:
+            raise ValueError(
+                "query_vector cannot be empty."
+            )
+
+        if limit <= 0:
+            raise ValueError(
+                "limit must be greater than 0."
+            )
 
         results = self.client.query_points(
             collection_name=self.collection_name,
