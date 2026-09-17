@@ -1,28 +1,14 @@
 
-# Start all:
-#   docker compose up -d
-#
-# Stop all:
-#   docker compose down
-#
-# View backend logs:
-#   docker compose logs -f backend
-#
-# Rebuild:
-#   docker compose up -d --build
-#
-# Pull an Ollama model:
-#   docker compose exec ollama ollama pull nomic-embed-text
-#
-# Test pipeline:
-#   python3 -m tests.test_pipeline
-#
+# docker compose up -d
+# docker compose down
+# docker compose logs -f backend
+# docker compose up -d --build
+# docker compose exec ollama ollama pull nomic-embed-text
+# python3 -m tests.test_pipeline
 # Ruff:
 #   python -m pip install ruff
 #   ruff check .
 #   ruff format --check .
-# ══════════════════════════════════════════════════════════════
-
 services:
 
   # ────────────────────────────────────────────────────────────
@@ -237,7 +223,6 @@ services:
 
   # ────────────────────────────────────────────────────────────
   # SERVICE : POSTGRESQL
-  # Currently disabled
   # ────────────────────────────────────────────────────────────
   #
   # postgres:
