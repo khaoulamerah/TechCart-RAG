@@ -48,12 +48,6 @@ def is_relevant(
     retrieved_document: str,
     relevant_documents: list[str],
 ) -> bool:
-    """
-    Check whether a retrieved document is relevant.
-
-    A retrieved chunk is considered relevant when its
-    document_id appears in the ground-truth documents.
-    """
 
     return retrieved_document in relevant_documents
 
@@ -62,13 +56,6 @@ def calculate_recall_at_k(
     results: list[dict[str, Any]],
     k: int,
 ) -> float:
-    """
-    Calculate Recall@K.
-
-    A question is counted as successfully retrieved if
-    at least one relevant document appears in the top K
-    retrieved results.
-    """
 
     if not results:
         return 0.0
@@ -104,16 +91,6 @@ def calculate_mrr(
     results: list[dict[str, Any]],
     k: int,
 ) -> float:
-    """
-    Calculate Mean Reciprocal Rank@K.
-
-    For each question:
-        rank 1 -> 1.0
-        rank 2 -> 0.5
-        rank 3 -> 0.333...
-        ...
-        no relevant result -> 0.0
-    """
 
     if not results:
         return 0.0
@@ -156,7 +133,6 @@ def calculate_mrr(
 def calculate_metrics(
     results: list[dict[str, Any]],
 ) -> dict[str, float]:
-    """Calculate all retrieval metrics for one model."""
 
     return {
         "recall_at_1": calculate_recall_at_k(
@@ -177,7 +153,6 @@ def calculate_metrics(
 def evaluate_model(
     model_name: str,
 ) -> dict[str, Any]:
-    """Evaluate one embedding model."""
 
     file_path = (
         RETRIEVAL_RESULTS_DIR
@@ -229,7 +204,6 @@ def save_metrics(
     results: list[dict[str, Any]],
     output_file: Path,
 ) -> None:
-    """Save model comparison metrics to JSON."""
 
     output_file.parent.mkdir(
         parents=True,
@@ -256,7 +230,6 @@ def save_metrics(
 def print_comparison(
     results: list[dict[str, Any]],
 ) -> None:
-    """Print a comparison table for all models."""
 
     print("\n")
     print("=" * 90)
