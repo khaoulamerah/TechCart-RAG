@@ -3,7 +3,6 @@ from typing import Any
 
 
 class VectorStore(ABC):
-    """Abstract interface for a vector store."""
 
     @abstractmethod
     def create_collection(self, vector_size: int) -> None:
