@@ -133,28 +133,6 @@ def calculate_mrr(
     )
 
 
-def calculate_average_retrieval_latency(
-    results: list[dict[str, Any]],
-) -> float:
-
-    latencies = []
-
-    for result in results:
-        latency = result.get(
-            "retrieval_latency_seconds"
-        )
-
-        if latency is not None:
-            latencies.append(
-                float(latency)
-            )
-
-    if not latencies:
-        return 0.0
-
-    return sum(latencies) / len(latencies)
-
-
 def calculate_metrics(
     results: list[dict[str, Any]],
 ) -> dict[str, float]:
@@ -172,11 +150,6 @@ def calculate_metrics(
         "mrr_at_5": calculate_mrr(
             results,
             k=5,
-        ),
-        "average_retrieval_latency_seconds": (
-            calculate_average_retrieval_latency(
-                results
-            )
         ),
     }
 
@@ -280,14 +253,6 @@ def print_comparison(
 
     print(header)
     print("-" * 110)
-
-    for result in results:
-        latency_ms = (
-            result[
-                "average_retrieval_latency_seconds"
-            ]
-            * 1000
-        )
 
         print(
             f"{result['model_name']:<15}"
