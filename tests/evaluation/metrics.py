@@ -48,6 +48,7 @@ def is_relevant(
     retrieved_document: str,
     relevant_documents: list[str],
 ) -> bool:
+    """Check whether a retrieved document is relevant."""
 
     return retrieved_document in relevant_documents
 
@@ -56,6 +57,7 @@ def calculate_recall_at_k(
     results: list[dict[str, Any]],
     k: int,
 ) -> float:
+    """Calculate Recall@K."""
 
     if not results:
         return 0.0
@@ -91,6 +93,7 @@ def calculate_mrr(
     results: list[dict[str, Any]],
     k: int,
 ) -> float:
+    """Calculate Mean Reciprocal Rank@K."""
 
     if not results:
         return 0.0
@@ -130,9 +133,32 @@ def calculate_mrr(
     )
 
 
+def calculate_average_retrieval_latency(
+    results: list[dict[str, Any]],
+) -> float:
+
+    latencies = []
+
+    for result in results:
+        latency = result.get(
+            "retrieval_latency_seconds"
+        )
+
+        if latency is not None:
+            latencies.append(
+                float(latency)
+            )
+
+    if not latencies:
+        return 0.0
+
+    return sum(latencies) / len(latencies)
+
+
 def calculate_metrics(
     results: list[dict[str, Any]],
 ) -> dict[str, float]:
+    """Calculate all retrieval metrics."""
 
     return {
         "recall_at_1": calculate_recall_at_k(
@@ -147,12 +173,18 @@ def calculate_metrics(
             results,
             k=5,
         ),
+        "average_retrieval_latency_seconds": (
+            calculate_average_retrieval_latency(
+                results
+            )
+        ),
     }
 
 
 def evaluate_model(
     model_name: str,
 ) -> dict[str, Any]:
+    """Evaluate one embedding model."""
 
     file_path = (
         RETRIEVAL_RESULTS_DIR
@@ -204,6 +236,7 @@ def save_metrics(
     results: list[dict[str, Any]],
     output_file: Path,
 ) -> None:
+    """Save evaluation metrics to JSON."""
 
     output_file.parent.mkdir(
         parents=True,
@@ -230,31 +263,41 @@ def save_metrics(
 def print_comparison(
     results: list[dict[str, Any]],
 ) -> None:
+    """Print a comparison table."""
 
     print("\n")
-    print("=" * 90)
+    print("=" * 110)
     print("EMBEDDING MODEL COMPARISON")
-    print("=" * 90)
+    print("=" * 110)
 
     header = (
         f"{'Model':<15}"
         f"{'Recall@1':>12}"
         f"{'Recall@5':>12}"
         f"{'MRR@5':>12}"
+        f"{'Avg Latency(ms)':>20}"
     )
 
     print(header)
-    print("-" * 90)
+    print("-" * 110)
 
     for result in results:
+        latency_ms = (
+            result[
+                "average_retrieval_latency_seconds"
+            ]
+            * 1000
+        )
+
         print(
             f"{result['model_name']:<15}"
             f"{result['recall_at_1']:>12.4f}"
             f"{result['recall_at_5']:>12.4f}"
             f"{result['mrr_at_5']:>12.4f}"
+            f"{latency_ms:>20.3f}"
         )
 
-    print("=" * 90)
+    print("=" * 110)
 
 
 def main() -> None:
