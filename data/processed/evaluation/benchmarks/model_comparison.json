@@ -1,0 +1,76 @@
+{
+  "comparison": "embedding_models",
+  "num_models": 5,
+  "models": [
+    {
+      "model_name": "nomic_v1",
+      "ollama_model": "nomic-embed-text",
+      "embedding_dimension": 768,
+      "num_questions": 50,
+      "recall_at_1": 0.74,
+      "recall_at_5": 0.98,
+      "mrr_at_5": 0.8533333333333333,
+      "embedding_average_ms": 950.7787656666741,
+      "embedding_median_ms": 944.4642610000074,
+      "embedding_per_question_ms": 19.015575313333482,
+      "retrieval_average_ms": 3.9718945800632355,
+      "retrieval_median_ms": 3.8736699998480617
+    },
+    {
+      "model_name": "bge_m3",
+      "ollama_model": "bge-m3",
+      "embedding_dimension": 1024,
+      "num_questions": 50,
+      "recall_at_1": 0.86,
+      "recall_at_5": 1.0,
+      "mrr_at_5": 0.93,
+      "embedding_average_ms": 2555.744896999992,
+      "embedding_median_ms": 2527.9624679999984,
+      "embedding_per_question_ms": 51.114897939999835,
+      "retrieval_average_ms": 3.6390029799561794,
+      "retrieval_median_ms": 3.9873810001154197
+    },
+    {
+      "model_name": "nomic_v2",
+      "ollama_model": "nomic-embed-text-v2-moe",
+      "embedding_dimension": 768,
+      "num_questions": 50,
+      "recall_at_1": 0.8,
+      "recall_at_5": 0.98,
+      "mrr_at_5": 0.8833333333333333,
+      "embedding_average_ms": 1712.4895670000153,
+      "embedding_median_ms": 1702.5400599999898,
+      "embedding_per_question_ms": 34.24979134000031,
+      "retrieval_average_ms": 2.049995553255333,
+      "retrieval_median_ms": 1.9656784998005605
+    },
+    {
+      "model_name": "qwen3",
+      "ollama_model": "qwen3-embedding:0.6b",
+      "embedding_dimension": 1024,
+      "num_questions": 50,
+      "recall_at_1": 0.84,
+      "recall_at_5": 0.98,
+      "mrr_at_5": 0.91,
+      "embedding_average_ms": 4040.59594233333,
+      "embedding_median_ms": 4159.534887000007,
+      "embedding_per_question_ms": 80.81191884666661,
+      "retrieval_average_ms": 2.1634621932389564,
+      "retrieval_median_ms": 2.0830889989156276
+    },
+    {
+      "model_name": "arctic",
+      "ollama_model": "snowflake-arctic-embed2",
+      "embedding_dimension": 1024,
+      "num_questions": 50,
+      "recall_at_1": 0.78,
+      "recall_at_5": 1.0,
+      "mrr_at_5": 0.8673333333333333,
+      "embedding_average_ms": 4635.880364000002,
+      "embedding_median_ms": 5111.256549000018,
+      "embedding_per_question_ms": 92.71760728000004,
+      "retrieval_average_ms": 3.3075073333384353,
+      "retrieval_median_ms": 3.7121675004527788
+    }
+  ]
+}

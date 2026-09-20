@@ -1,0 +1,196 @@
+# Task 3: Integrate the Chat Backend with Ollama (LangChain)
+
+## Overview
+
+The objective of this task is to replace the temporary testing response with a real Large Language Model (LLM) running locally (Docker) using **Ollama**.
+
+The integration should be implemented as quickly and simply as possible using **LangChain**. At this stage, the focus is **not** on the quality of the AI responses, prompt engineering, RAG, memory, or tool calling. The objective is simply to establish a working connection between the backend and the LLM.
+
+At the end of this task, users should be able to chat with the AI through the web interface.
+
+> you should also do a research about the best model you can run with your resources.
+
+> you have to use a design pattren that allow you to change the LLM (like using gimini api for example) in the future without changing the Chat Service. (strategy pattern is good option or any other pattern that you think is good for this case , you should do some research about this )
+
+**Estimated Duration:** 2 Day
+
+---
+
+# Objectives
+
+* Install and configure Ollama in a Docker container.
+* Run a local LLM using the containerized Ollama instance.
+* Integrate LangChain into the backend.
+* Replace the fixed testing response with an LLM response.
+* Connect the Chat Service with the LLM.
+* Keep the existing conversation persistence unchanged.
+* Verify end-to-end communication between the frontend and the LLM.
+
+---
+
+# Scope
+
+This task **does not include**:
+
+* Prompt engineering
+* RAG (Retrieval-Augmented Generation)
+* Tool calling
+* Function calling
+* Conversation memory
+* Streaming responses
+* AI quality optimization
+* System prompt optimization
+
+The goal is only to establish a working connection with the LLM running through Ollama in Docker.
+
+---
+
+# System Flow
+
+```text
+User
+    │
+    ▼
+Frontend (HTML/CSS/JS)
+    │
+    ▼
+Chat API
+    │
+    ▼
+Chat Service
+    │
+    ├── Conversation Service
+    └── LangChain
+            │
+            ▼
+   Ollama (Docker Container)
+            │
+            ▼
+      LLM Response
+            │
+            ▼
+Save conversation
+            │
+            ▼
+Return response
+            │
+            ▼
+Frontend
+```
+
+---
+
+# Ollama Setup
+
+Requirements:
+
+* Run Ollama inside a Docker container.
+* Expose the Ollama API so the backend can reach it.
+* Download a lightweight chat model.
+* Verify that the model runs correctly inside the container.
+* Confirm communication with the Ollama server from the backend environment.
+
+The backend should communicate only with the local Ollama instance running in Docker, either through an exposed port or through the internal Docker network, depending on the deployment setup.
+
+---
+
+# LangChain Integration
+
+Integrate LangChain as the abstraction layer between the application and the LLM.
+
+Responsibilities:
+
+* Configure the Ollama client.
+* Send the user's message.
+* Receive the model response.
+* Return the response to the Chat Service.
+
+The Chat Service should not contain any Ollama-specific implementation details.
+
+---
+
+# Chat Service
+
+Update the existing Chat Service.
+
+Responsibilities:
+
+* Receive the user's message.
+* Load the conversation.
+* Send the message to LangChain.
+* Receive the LLM response.
+* Save both user and assistant messages.
+* Return the response to the frontend.
+
+The Conversation Service remains responsible only for conversation persistence.
+
+---
+
+# Frontend
+
+No major frontend changes are required.
+
+The existing chat interface should continue to:
+
+* Send messages.
+* Receive responses.
+* Display assistant messages.
+* Display loading states.
+* Handle errors.
+
+The only difference is that responses now come from the LLM instead of the fixed testing message.
+
+---
+
+# Error Handling
+
+Handle the following cases:
+
+* Ollama container is not running.
+* Requested model is unavailable.
+* LangChain connection errors.
+* Backend communication failures.
+* Empty responses from the LLM.
+* Internal server errors.
+
+Provide clear error messages for debugging.
+
+---
+
+# Validation
+
+Verify that:
+
+* The Ollama container is reachable.
+* The model loads successfully.
+* Messages are sent correctly.
+* Responses are returned successfully.
+* Conversations continue to be saved in MongoDB.
+
+---
+
+# Project Deliverables
+
+At the end of this task, the project should provide:
+
+* Ollama running locally inside Docker.
+* LangChain integrated into the backend.
+* A working connection between FastAPI and the Ollama container.
+* The Chat Service using the LLM instead of the fixed response.
+* Conversation persistence unchanged.
+* A functional web chat communicating with the local LLM.
+
+---
+
+# Acceptance Criteria
+
+The task is complete when:
+
+* Ollama is running inside a Docker container.
+* A local LLM is available through the containerized Ollama instance.
+* LangChain successfully communicates with the LLM.
+* Users can send messages from the frontend.
+* The backend returns responses generated by the LLM.
+* Conversations continue to be stored correctly in MongoDB.
+* The frontend displays the generated responses correctly.
+* The complete chat workflow operates end-to-end without relying on the previous fixed testing response.
