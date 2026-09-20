@@ -3,10 +3,6 @@ from pathlib import Path
 from typing import Any
 
 
-# ============================================================
-# Paths
-# ============================================================
-
 EVALUATION_DIR = Path(
     "data/processed/evaluation"
 )
@@ -22,35 +18,6 @@ OUTPUT_FILE = (
     / "benchmarks"
     / "model_analysis.json"
 )
-
-
-# ============================================================
-# Configuration
-# ============================================================
-
-# For a RAG system, retrieval quality is the primary concern.
-#
-# We do NOT calculate an arbitrary weighted score.
-#
-# A model is considered dominated when another model is:
-#
-#   - at least as good in retrieval quality
-#   - and at least as good in speed
-#   - and strictly better in at least one dimension.
-#
-# Quality dimensions:
-#   Recall@1
-#   Recall@5
-#   MRR@5
-#
-# Speed dimensions:
-#   Embedding latency
-#   Retrieval latency
-
-
-# ============================================================
-# Load comparison
-# ============================================================
 
 
 def load_comparison() -> list[dict[str, Any]]:
@@ -94,27 +61,10 @@ def load_comparison() -> list[dict[str, Any]]:
     return models
 
 
-# ============================================================
-# Dominance
-# ============================================================
-
-
 def dominates(
     model_a: dict[str, Any],
     model_b: dict[str, Any],
 ) -> bool:
-    """
-    Return True if model_a dominates model_b.
-
-    Higher is better:
-        Recall@1
-        Recall@5
-        MRR@5
-
-    Lower is better:
-        Embedding latency
-        Retrieval latency
-    """
 
     quality_a = [
         model_a["recall_at_1"],
@@ -163,8 +113,6 @@ def dominates(
     if not speed_not_worse:
         return False
 
-    # A must be strictly better in at least
-    # one dimension.
 
     quality_better = any(
         a > b
@@ -185,17 +133,9 @@ def dominates(
     return quality_better or speed_better
 
 
-# ============================================================
-# Find Pareto-efficient models
-# ============================================================
-
-
 def find_pareto_efficient_models(
     models: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """
-    Find models that are not dominated by another model.
-    """
 
     efficient_models = []
 
@@ -219,27 +159,9 @@ def find_pareto_efficient_models(
     return efficient_models
 
 
-# ============================================================
-# Quality comparison
-# ============================================================
-
-
 def find_best_quality_model(
     models: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """
-    Find the model with the strongest measured retrieval
-    quality.
-
-    Priority:
-
-        1. MRR@5
-        2. Recall@1
-        3. Recall@5
-
-    This is NOT an overall score.
-    It is a lexicographic comparison of retrieval quality.
-    """
 
     return max(
         models,
@@ -251,15 +173,11 @@ def find_best_quality_model(
     )
 
 
-# ============================================================
+
 # Speed comparison
-# ============================================================
-
-
 def find_fastest_embedding_model(
     models: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Find the model with the lowest embedding latency."""
 
     return min(
         models,
@@ -280,11 +198,6 @@ def find_fastest_retrieval_model(
             model["retrieval_average_ms"]
         ),
     )
-
-
-# ============================================================
-# Print Pareto analysis
-# ============================================================
 
 
 def print_pareto_analysis(
@@ -312,15 +225,9 @@ def print_pareto_analysis(
     print("=" * 100)
 
 
-# ============================================================
-# Print quality analysis
-# ============================================================
-
-
 def print_quality_analysis(
     models: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    """Print the strongest retrieval-quality result."""
 
     best_quality = find_best_quality_model(
         models
@@ -354,11 +261,6 @@ def print_quality_analysis(
     print("=" * 100)
 
     return best_quality
-
-
-# ============================================================
-# Print speed analysis
-# ============================================================
 
 
 def print_speed_analysis(
@@ -396,11 +298,6 @@ def print_speed_analysis(
     )
 
     print("=" * 100)
-
-
-# ============================================================
-# Save analysis
-# ============================================================
 
 
 def save_analysis(
@@ -454,13 +351,7 @@ def save_analysis(
         )
 
 
-# ============================================================
-# Main
-# ============================================================
-
-
 def main() -> None:
-    """Run model analysis."""
 
     print()
     print("=" * 100)
