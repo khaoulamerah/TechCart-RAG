@@ -57,36 +57,44 @@ def calculate_recall_at_k(
     results: list[dict[str, Any]],
     k: int,
 ) -> float:
-    """Calculate Recall@K."""
+    """Calculate standard Recall@K over relevant documents."""
 
     if not results:
         return 0.0
 
-    successful_queries = 0
-
-    for result in results:
-        relevant_documents = result[
-            "relevant_documents"
-        ]
-
-        retrieved_documents = result[
-            "retrieved_documents"
-        ]
-
-        top_k = retrieved_documents[:k]
-
-        found = any(
-            is_relevant(
-                document,
-                relevant_documents,
-            )
-            for document in top_k
+    if k <= 0:
+        raise ValueError(
+            "k must be greater than 0."
         )
 
-        if found:
-            successful_queries += 1
+    recalls = []
 
-    return successful_queries / len(results)
+    for result in results:
+        relevant_documents = set(
+            result["relevant_documents"]
+        )
+
+        retrieved_documents = set(
+            result["retrieved_documents"][:k]
+        )
+
+        if not relevant_documents:
+            recalls.append(0.0)
+            continue
+
+        retrieved_relevant = (
+            relevant_documents
+            & retrieved_documents
+        )
+
+        recall = (
+            len(retrieved_relevant)
+            / len(relevant_documents)
+        )
+
+        recalls.append(recall)
+
+    return sum(recalls) / len(recalls)
 
 
 def calculate_mrr(
@@ -97,6 +105,11 @@ def calculate_mrr(
 
     if not results:
         return 0.0
+
+    if k <= 0:
+        raise ValueError(
+            "k must be greater than 0."
+        )
 
     reciprocal_ranks = []
 
@@ -136,7 +149,7 @@ def calculate_mrr(
 def calculate_metrics(
     results: list[dict[str, Any]],
 ) -> dict[str, float]:
-    """Calculate all retrieval metrics."""
+    """Calculate all retrieval quality metrics."""
 
     return {
         "recall_at_1": calculate_recall_at_k(
@@ -236,33 +249,32 @@ def save_metrics(
 def print_comparison(
     results: list[dict[str, Any]],
 ) -> None:
-    """Print a comparison table."""
+    """Print a retrieval quality comparison table."""
 
     print("\n")
-    print("=" * 110)
-    print("EMBEDDING MODEL COMPARISON")
-    print("=" * 110)
+    print("=" * 80)
+    print("RETRIEVAL QUALITY COMPARISON")
+    print("=" * 80)
 
     header = (
         f"{'Model':<15}"
         f"{'Recall@1':>12}"
         f"{'Recall@5':>12}"
         f"{'MRR@5':>12}"
-        f"{'Avg Latency(ms)':>20}"
     )
 
     print(header)
-    print("-" * 110)
+    print("-" * 80)
 
+    for result in results:
         print(
             f"{result['model_name']:<15}"
             f"{result['recall_at_1']:>12.4f}"
             f"{result['recall_at_5']:>12.4f}"
             f"{result['mrr_at_5']:>12.4f}"
-            f"{latency_ms:>20.3f}"
         )
 
-    print("=" * 110)
+    print("=" * 80)
 
 
 def main() -> None:
@@ -271,9 +283,7 @@ def main() -> None:
     results = evaluate_all_models()
 
     output_file = (
-        Path(
-            "data/processed/evaluation"
-        )
+        Path("data/processed/evaluation")
         / "metrics.json"
     )
 
