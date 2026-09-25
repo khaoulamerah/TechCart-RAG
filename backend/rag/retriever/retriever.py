@@ -3,6 +3,7 @@ from typing import Any
 from backend.rag.embeddings.embedder import (
     OllamaEmbeddingStrategy,
 )
+from backend.rag.reranker.bge import BGEReranker
 from backend.rag.vector_store.qdrant import (
     QdrantVectorStore,
 )
@@ -14,65 +15,62 @@ class Retriever:
         self,
         embedder: OllamaEmbeddingStrategy,
         vector_store: QdrantVectorStore,
+        reranker: BGEReranker | None = None,
+        retrieval_k: int = 20,
         top_k: int = 5,
-        similarity_threshold: float = 0.0,
     ) -> None:
-        if top_k <= 0:
+        if retrieval_k < top_k:
             raise ValueError(
-                "top_k must be greater than 0."
-            )
-
-        if similarity_threshold < 0:
-            raise ValueError(
-                "similarity_threshold cannot be negative."
+                "retrieval_k must be greater than or equal "
+                "to top_k."
             )
 
         self.embedder = embedder
         self.vector_store = vector_store
+        self.reranker = reranker
+
+        self.retrieval_k = retrieval_k
         self.top_k = top_k
-        self.similarity_threshold = (
-            similarity_threshold
-        )
 
     def retrieve(
         self,
         query: str,
     ) -> list[dict[str, Any]]:
 
-        cleaned_query = query.strip()
-
-        if not cleaned_query:
+        if not query.strip():
             raise ValueError(
-                "query cannot be empty."
+                "Query cannot be empty."
             )
 
-        # 1. Convert question into BGE-M3 vector
+        cleaned_query = query.strip()
+
+
+        # 1. Generate query embedding using BGE-M3
 
         query_embedding = self.embedder.embed(
             [cleaned_query]
         )[0]
 
-        # BGE-M3 should produce 1024 dimensions.
-        if len(query_embedding) != 1024:
-            raise ValueError(
-                "BGE-M3 query embedding must have "
-                f"1024 dimensions, got "
-                f"{len(query_embedding)}."
-            )
 
-        # 2. Search Qdrant
-        results = self.vector_store.search(
+        # 2. Retrieve candidate documents from Qdrant
+
+        candidates = self.vector_store.search(
             query_vector=query_embedding,
-            limit=self.top_k,
+            limit=self.retrieval_k,
         )
 
-        # 3. Apply similarity threshold
+        if not candidates:
+            return []
 
-        filtered_results = [
-            result
-            for result in results
-            if result["score"]
-            >= self.similarity_threshold
-        ]
+        # 3. Rerank candidates
 
-        return filtered_results
+        if self.reranker is not None:
+            results = self.reranker.rerank(
+                query=cleaned_query,
+                documents=candidates,
+                top_k=self.top_k,
+            )
+        else:
+            results = candidates[:self.top_k]
+
+        return results
