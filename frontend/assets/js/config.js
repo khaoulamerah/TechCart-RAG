@@ -1,18 +1,42 @@
 const CONFIG = {
-  API_BASE_URL: "http://localhost:8000",
+  /*
+   * Browser:
+   *
+   * http://localhost:3000
+   *
+   * API:
+   *
+   * http://localhost:3000/api
+   *
+   * Nginx forwards:
+   *
+   * /api/* → backend:8000/*
+   */
+
+  API_BASE_URL: "/api",
 
   CHAT_ENDPOINT: "/chat",
 
-  SESSION_STORAGE_KEY: "techcart_session_id",
+  SESSION_STORAGE_KEY:
+    "techcart_session_id",
 
-  STORAGE_KEY: "techcart_conversations",
+  STORAGE_KEY:
+    "techcart_conversations",
 
   /*
-   * Used only for non-streaming requests such as DELETE.
+   * Normal API requests.
    */
   REQUEST_TIMEOUT_MS: 30000,
 
-  STREAM_TIMEOUT_MS: 120000,
+  /*
+   * Maximum inactivity period while
+   * receiving the streaming response.
+   *
+   * This is NOT supposed to compensate for
+   * model cold-start anymore because models
+   * are warmed during backend startup.
+   */
+  STREAM_TIMEOUT_MS: 180000,
 
   TYPING_SPEED_MS: 12,
 
@@ -22,9 +46,9 @@ const CONFIG = {
 
   WELCOME_MESSAGE:
     "Bonjour 👋 Je suis l'assistant TechCart. " +
-    "Demandez-moi un GPU, un CPU, ou demandez-moi " +
-    "de comparer deux composants — je fouille le " +
-    "stock en temps réel pour vous.",
+    "Demandez-moi un GPU, un CPU, ou posez-moi " +
+    "une question concernant les politiques " +
+    "de TechCart.",
 };
 
 Object.freeze(CONFIG);

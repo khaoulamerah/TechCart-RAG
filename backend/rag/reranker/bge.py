@@ -12,6 +12,12 @@ class BGEReranker(Reranker):
         model_name: str = "BAAI/bge-reranker-v2-m3",
         use_fp16: bool = False,
     ) -> None:
+
+        if not model_name:
+            raise ValueError(
+                "model_name cannot be empty."
+            )
+
         self.model_name = model_name
 
         self.reranker = FlagReranker(
@@ -26,6 +32,11 @@ class BGEReranker(Reranker):
         top_k: int,
     ) -> list[dict[str, Any]]:
 
+        if not query.strip():
+            raise ValueError(
+                "Query cannot be empty."
+            )
+
         if not documents:
             return []
 
@@ -34,13 +45,25 @@ class BGEReranker(Reranker):
                 "top_k must be greater than zero."
             )
 
-        pairs = [
-            [
-                query,
-                str(document["payload"]["text"]),
-            ]
-            for document in documents
-        ]
+        pairs = []
+
+        for document in documents:
+            payload = document.get(
+                "payload",
+                {},
+            )
+
+            text = payload.get(
+                "text",
+                "",
+            )
+
+            pairs.append(
+                [
+                    query,
+                    str(text),
+                ]
+            )
 
         scores = self.reranker.compute_score(
             pairs,
@@ -56,13 +79,11 @@ class BGEReranker(Reranker):
             documents,
             scores,
         ):
-            reranked_document = {
-                **document,
-                "rerank_score": float(score),
-            }
-
             reranked_documents.append(
-                reranked_document
+                {
+                    **document,
+                    "rerank_score": float(score),
+                }
             )
 
         reranked_documents.sort(
