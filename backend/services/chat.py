@@ -5,24 +5,37 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 
-from backend.rag.generator.base import LLMProvider, LLMProviderError
-from backend.services.conversation import ConversationService
+from backend.rag.generator.base import (
+    LLMProvider,
+    LLMProviderError,
+)
+from backend.rag.prompt import build_rag_prompt
+from backend.rag.retriever.retriever import Retriever
+from backend.services.conversation import (
+    ConversationService,
+)
 
 
 def utcnow() -> datetime:
-    """Return the current UTC datetime."""
     return datetime.now(timezone.utc)
 
 
 class ChatService:
+    """Application service for RAG chat."""
 
     def __init__(
         self,
         conversation_service: ConversationService,
         llm_provider: LLMProvider,
-    ):
-        self.conversation_service = conversation_service
+        retriever: Retriever,
+    ) -> None:
+        self.conversation_service = (
+            conversation_service
+        )
+
         self.llm_provider = llm_provider
+
+        self.retriever = retriever
 
     async def prepare_conversation(
         self,
@@ -30,7 +43,10 @@ class ChatService:
         session_id: str | None,
         conversation_id: str | None,
     ) -> dict[str, Any]:
-        cleaned_message = (message or "").strip()
+
+        cleaned_message = (
+            message or ""
+        ).strip()
 
         if not cleaned_message:
             raise HTTPException(
@@ -39,14 +55,24 @@ class ChatService:
             )
 
         if conversation_id:
-            conversation = await self.conversation_service.get_conversation(
-                conversation_id
+            conversation = (
+                await self.conversation_service
+                .get_conversation(
+                    conversation_id
+                )
             )
         else:
-            session_id = session_id or str(uuid4())
-            conversation = await self.conversation_service.get_or_create_by_session(
-                session_id
+            session_id = (
+                session_id or str(uuid4())
             )
+
+            conversation = (
+                await self.conversation_service
+                .get_or_create_by_session(
+                    session_id
+                )
+            )
+
             conversation_id = conversation["id"]
 
         return {
@@ -61,15 +87,16 @@ class ChatService:
         conversation_id: str,
         session_id: str,
     ) -> AsyncIterator[dict[str, Any]]:
-        """
-        Pure streaming part. Must only be called AFTER
-        prepare_conversation() has succeeded — no validation happens
-        here anymore, only: save user message, stream LLM tokens,
-        save assistant message.
-        """
+
+
+        # 1. Save user message
+
         await self.conversation_service.add_message(
             conversation_id,
-            {"role": "user", "content": cleaned_message},
+            {
+                "role": "user",
+                "content": cleaned_message,
+            },
         )
 
         yield {
@@ -78,35 +105,89 @@ class ChatService:
             "session_id": session_id,
         }
 
+        # 2. Retrieve relevant chunks
+
+        try:
+            retrieved_results = (
+                self.retriever.retrieve(
+                    cleaned_message
+                )
+            )
+
+        except Exception:
+            yield {
+                "type": "error",
+                "message": (
+                    "I could not retrieve "
+                    "relevant information."
+                ),
+            }
+            return
+
+        # 3. Build RAG prompt
+
+        prompt = build_rag_prompt(
+            question=cleaned_message,
+            results=retrieved_results,
+        )
+
+        # 4. Stream LLM response
+
         full_response: list[str] = []
 
         try:
-            async for chunk in self.llm_provider.generate_stream(cleaned_message):
+            async for chunk in (
+                self.llm_provider.generate_stream(
+                    prompt
+                )
+            ):
                 if not chunk:
                     continue
+
                 full_response.append(chunk)
-                yield {"type": "token", "content": chunk}
+
+                yield {
+                    "type": "token",
+                    "content": chunk,
+                }
 
         except LLMProviderError:
             yield {
                 "type": "error",
-                "message": "The AI model is currently unavailable.",
+                "message": (
+                    "The AI model is currently "
+                    "unavailable."
+                ),
             }
             return
 
-        reply_text = "".join(full_response).strip()
+        # 5. Validate generated response
+
+        reply_text = "".join(
+            full_response
+        ).strip()
 
         if not reply_text:
             yield {
                 "type": "error",
-                "message": "The AI model returned an empty response.",
+                "message": (
+                    "The AI model returned "
+                    "an empty response."
+                ),
             }
             return
 
+        # 6. Save assistant response
+
         await self.conversation_service.add_message(
             conversation_id,
-            {"role": "assistant", "content": reply_text},
+            {
+                "role": "assistant",
+                "content": reply_text,
+            },
         )
+
+        # 7. Finish
 
         yield {
             "type": "done",

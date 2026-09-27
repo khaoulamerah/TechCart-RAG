@@ -7,15 +7,31 @@ from fastapi.responses import StreamingResponse
 from backend.api.routes.conversation import (
     get_conversation_service,
 )
-from backend.api.schemas.chat import ChatMessageRequest
+from backend.api.schemas.chat import (
+    ChatMessageRequest,
+)
 from backend.api.schemas.conversation import (
     ConversationListResponse,
     ConversationResponse,
 )
-from backend.rag.generator.base import LLMProvider
-from backend.rag.generator.factory import get_llm_provider
-from backend.services.chat import ChatService
-from backend.services.conversation import ConversationService
+from backend.rag.generator.base import (
+    LLMProvider,
+)
+from backend.rag.generator.factory import (
+    get_llm_provider,
+)
+from backend.rag.retriever.factory import (
+    get_retriever,
+)
+from backend.rag.retriever.retriever import (
+    Retriever,
+)
+from backend.services.chat import (
+    ChatService,
+)
+from backend.services.conversation import (
+    ConversationService,
+)
 
 
 router = APIRouter(
@@ -31,10 +47,16 @@ def get_chat_service(
     llm_provider: LLMProvider = Depends(
         get_llm_provider
     ),
+    retriever: Retriever = Depends(
+        get_retriever
+    ),
 ) -> ChatService:
+    """Create the ChatService."""
+
     return ChatService(
         conversation_service=conversation_service,
         llm_provider=llm_provider,
+        retriever=retriever,
     )
 
 
@@ -42,11 +64,13 @@ def format_sse(
     event: str,
     data: dict,
 ) -> str:
-
+    """Format one Server-Sent Event."""
 
     return (
         f"event: {event}\n"
-        f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+        f"data: "
+        f"{json.dumps(data, ensure_ascii=False)}"
+        f"\n\n"
     )
 
 
@@ -57,18 +81,30 @@ async def send_chat_message(
         get_chat_service
     ),
 ):
-    resolved = await chat_service.prepare_conversation(
-        message=payload.message,
-        session_id=payload.session_id,
-        conversation_id=payload.conversation_id,
+    """Send a message through the RAG pipeline."""
+
+    resolved = (
+        await chat_service.prepare_conversation(
+            message=payload.message,
+            session_id=payload.session_id,
+            conversation_id=payload.conversation_id,
+        )
     )
 
     async def event_generator() -> AsyncIterator[str]:
         try:
-            async for event in chat_service.stream_message(
-                cleaned_message=resolved["cleaned_message"],
-                conversation_id=resolved["conversation_id"],
-                session_id=resolved["session_id"],
+            async for event in (
+                chat_service.stream_message(
+                    cleaned_message=(
+                        resolved["cleaned_message"]
+                    ),
+                    conversation_id=(
+                        resolved["conversation_id"]
+                    ),
+                    session_id=(
+                        resolved["session_id"]
+                    ),
+                )
             ):
                 event_type = event.get(
                     "type",
@@ -81,8 +117,6 @@ async def send_chat_message(
                 )
 
         except Exception:
-            # The HTTP response has already started.
-            # Therefore, communicate the error through SSE.
             yield format_sse(
                 event="error",
                 data={

@@ -9,17 +9,29 @@ from backend.rag.generator.base import (
 )
 
 
-logger = logging.getLogger("techcart.llm.ollama")
+logger = logging.getLogger(
+    "techcart.llm.ollama"
+)
 
 
 class OllamaLLMProvider(LLMProvider):
-    """LLM provider implementation using Ollama through LangChain."""
+    """LLM provider implementation using Ollama."""
 
     def __init__(
         self,
         model: str,
         base_url: str,
-    ):
+    ) -> None:
+        if not model:
+            raise ValueError(
+                "model cannot be empty."
+            )
+
+        if not base_url:
+            raise ValueError(
+                "base_url cannot be empty."
+            )
+
         self.model = model
         self.base_url = base_url
 
@@ -30,12 +42,15 @@ class OllamaLLMProvider(LLMProvider):
 
     def generate_stream(
         self,
-        message: str,
+        prompt: str,
     ) -> AsyncIterator[str]:
+        """Stream the LLM response."""
 
         async def stream() -> AsyncIterator[str]:
             try:
-                async for chunk in self._client.astream(message):
+                async for chunk in self._client.astream(
+                    prompt
+                ):
                     content = chunk.content or ""
 
                     if content:
@@ -49,7 +64,7 @@ class OllamaLLMProvider(LLMProvider):
                 )
 
                 raise LLMProviderError(
-                    f"Could not stream response from Ollama "
+                    "Could not stream response from Ollama "
                     f"(model '{self.model}'): {exc}"
                 ) from exc
 
