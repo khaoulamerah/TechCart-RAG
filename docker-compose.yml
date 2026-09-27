@@ -163,12 +163,20 @@ services:
       EMBEDDING_MODEL: bge-m3
       LLM_MODEL: mistral:latest
 
+      RERANKER_MODEL: BAAI/bge-reranker-v2-m3
+      RERANKER_USE_FP16: "false"
+      RETRIEVAL_K: 20
+      TOP_K_RESULTS: 5
+      SIMILARITY_THRESHOLD: 0.0
+      HF_HOME: /root/.cache/huggingface
+
     env_file:
       - .env
 
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data
+      - huggingface_cache:/root/.cache/huggingface
 
     ports:
       - "8000:8000"
@@ -269,6 +277,7 @@ services:
 volumes:
   mongodb_data:
   ollama_models:
+  huggingface_cache:
   # postgres_data:
 
 

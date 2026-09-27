@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Any
@@ -9,8 +10,12 @@ from backend.rag.generator.base import (
     LLMProvider,
     LLMProviderError,
 )
-from backend.rag.prompt import build_rag_prompt
-from backend.rag.retriever.retriever import Retriever
+from backend.rag.prompt import (
+    build_rag_prompt,
+)
+from backend.rag.retriever.retriever import (
+    Retriever,
+)
 from backend.services.conversation import (
     ConversationService,
 )
@@ -21,7 +26,7 @@ def utcnow() -> datetime:
 
 
 class ChatService:
-    """Application service for RAG chat."""
+    """Application service for the TechCart RAG chat."""
 
     def __init__(
         self,
@@ -29,6 +34,7 @@ class ChatService:
         llm_provider: LLMProvider,
         retriever: Retriever,
     ) -> None:
+
         self.conversation_service = (
             conversation_service
         )
@@ -54,14 +60,19 @@ class ChatService:
                 detail="Message cannot be empty.",
             )
 
+        # Existing conversation
         if conversation_id:
+
             conversation = (
                 await self.conversation_service
                 .get_conversation(
                     conversation_id
                 )
             )
+
+        # Existing/new session
         else:
+
             session_id = (
                 session_id or str(uuid4())
             )
@@ -73,7 +84,9 @@ class ChatService:
                 )
             )
 
-            conversation_id = conversation["id"]
+            conversation_id = (
+                conversation["id"]
+            )
 
         return {
             "cleaned_message": cleaned_message,
@@ -88,8 +101,9 @@ class ChatService:
         session_id: str,
     ) -> AsyncIterator[dict[str, Any]]:
 
-
+        # ─────────────────────────────────────────
         # 1. Save user message
+        # ─────────────────────────────────────────
 
         await self.conversation_service.add_message(
             conversation_id,
@@ -99,22 +113,31 @@ class ChatService:
             },
         )
 
+        # Send metadata immediately.
         yield {
             "type": "metadata",
             "conversation_id": conversation_id,
             "session_id": session_id,
         }
 
-        # 2. Retrieve relevant chunks
+        # ─────────────────────────────────────────
+        # 2. Retrieve + rerank
+        #
+        # Run CPU/blocking work outside the
+        # FastAPI event loop.
+        # ─────────────────────────────────────────
 
         try:
+
             retrieved_results = (
-                self.retriever.retrieve(
-                    cleaned_message
+                await asyncio.to_thread(
+                    self.retriever.retrieve,
+                    cleaned_message,
                 )
             )
 
         except Exception:
+
             yield {
                 "type": "error",
                 "message": (
@@ -122,29 +145,38 @@ class ChatService:
                     "relevant information."
                 ),
             }
+
             return
 
+        # ─────────────────────────────────────────
         # 3. Build RAG prompt
+        # ─────────────────────────────────────────
 
         prompt = build_rag_prompt(
             question=cleaned_message,
             results=retrieved_results,
         )
 
-        # 4. Stream LLM response
+        # ─────────────────────────────────────────
+        # 4. Generate response
+        # ─────────────────────────────────────────
 
         full_response: list[str] = []
 
         try:
+
             async for chunk in (
                 self.llm_provider.generate_stream(
                     prompt
                 )
             ):
+
                 if not chunk:
                     continue
 
-                full_response.append(chunk)
+                full_response.append(
+                    chunk
+                )
 
                 yield {
                     "type": "token",
@@ -152,6 +184,7 @@ class ChatService:
                 }
 
         except LLMProviderError:
+
             yield {
                 "type": "error",
                 "message": (
@@ -159,15 +192,19 @@ class ChatService:
                     "unavailable."
                 ),
             }
+
             return
 
-        # 5. Validate generated response
+        # ─────────────────────────────────────────
+        # 5. Validate response
+        # ─────────────────────────────────────────
 
         reply_text = "".join(
             full_response
         ).strip()
 
         if not reply_text:
+
             yield {
                 "type": "error",
                 "message": (
@@ -175,9 +212,12 @@ class ChatService:
                     "an empty response."
                 ),
             }
+
             return
 
-        # 6. Save assistant response
+        # ─────────────────────────────────────────
+        # 6. Save assistant message
+        # ─────────────────────────────────────────
 
         await self.conversation_service.add_message(
             conversation_id,
@@ -187,7 +227,9 @@ class ChatService:
             },
         )
 
+        # ─────────────────────────────────────────
         # 7. Finish
+        # ─────────────────────────────────────────
 
         yield {
             "type": "done",
