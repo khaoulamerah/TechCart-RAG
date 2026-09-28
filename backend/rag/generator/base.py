@@ -10,5 +10,11 @@ class LLMProvider(ABC):
     """Abstract interface for LLM providers."""
 
     @abstractmethod
-    def generate_stream(self, message: str) -> AsyncIterator[str]:
+    def generate_stream(
+        self,
+        prompt: str,
+    ) -> AsyncIterator[str]:
+        """
+        Generate a streaming response from a prompt.
+        """
         raise NotImplementedError

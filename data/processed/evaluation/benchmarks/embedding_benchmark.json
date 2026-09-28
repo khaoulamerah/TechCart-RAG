@@ -1,0 +1,91 @@
+{
+  "benchmark": "embedding_generation",
+  "num_models": 5,
+  "models": [
+    {
+      "model_name": "nomic_v1",
+      "ollama_model": "nomic-embed-text",
+      "num_questions": 50,
+      "num_runs": 3,
+      "embedding_dimension": 768,
+      "total_times_seconds": [
+        0.9393128339999635,
+        0.9444642610000074,
+        0.9685592020000513
+      ],
+      "average_time_seconds": 0.9507787656666741,
+      "median_time_seconds": 0.9444642610000074,
+      "average_time_ms": 950.7787656666741,
+      "median_time_ms": 944.4642610000074,
+      "average_per_question_ms": 19.015575313333482
+    },
+    {
+      "model_name": "bge_m3",
+      "ollama_model": "bge-m3",
+      "num_questions": 50,
+      "num_runs": 3,
+      "embedding_dimension": 1024,
+      "total_times_seconds": [
+        2.4075755559999834,
+        2.5279624679999984,
+        2.7316966669999942
+      ],
+      "average_time_seconds": 2.555744896999992,
+      "median_time_seconds": 2.5279624679999984,
+      "average_time_ms": 2555.744896999992,
+      "median_time_ms": 2527.9624679999984,
+      "average_per_question_ms": 51.114897939999835
+    },
+    {
+      "model_name": "nomic_v2",
+      "ollama_model": "nomic-embed-text-v2-moe",
+      "num_questions": 50,
+      "num_runs": 3,
+      "embedding_dimension": 768,
+      "total_times_seconds": [
+        1.7940650040000037,
+        1.6408636370000522,
+        1.7025400599999898
+      ],
+      "average_time_seconds": 1.7124895670000153,
+      "median_time_seconds": 1.7025400599999898,
+      "average_time_ms": 1712.4895670000153,
+      "median_time_ms": 1702.5400599999898,
+      "average_per_question_ms": 34.24979134000031
+    },
+    {
+      "model_name": "qwen3",
+      "ollama_model": "qwen3-embedding:0.6b",
+      "num_questions": 50,
+      "num_runs": 3,
+      "embedding_dimension": 1024,
+      "total_times_seconds": [
+        3.5772904589999825,
+        4.384962481000002,
+        4.159534887000007
+      ],
+      "average_time_seconds": 4.04059594233333,
+      "median_time_seconds": 4.159534887000007,
+      "average_time_ms": 4040.59594233333,
+      "median_time_ms": 4159.534887000007,
+      "average_per_question_ms": 80.81191884666661
+    },
+    {
+      "model_name": "arctic",
+      "ollama_model": "snowflake-arctic-embed2",
+      "num_questions": 50,
+      "num_runs": 3,
+      "embedding_dimension": 1024,
+      "total_times_seconds": [
+        5.111256549000018,
+        5.841176732000008,
+        2.9552078109999798
+      ],
+      "average_time_seconds": 4.635880364000002,
+      "median_time_seconds": 5.111256549000018,
+      "average_time_ms": 4635.880364000002,
+      "median_time_ms": 5111.256549000018,
+      "average_per_question_ms": 92.71760728000004
+    }
+  ]
+}

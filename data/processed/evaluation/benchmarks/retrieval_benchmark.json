@@ -1,0 +1,66 @@
+{
+  "benchmark": "qdrant_retrieval_latency",
+  "num_models": 5,
+  "models": [
+    {
+      "model_name": "nomic_v1",
+      "collection_name": "techcart_nomic_v1",
+      "num_questions": 50,
+      "num_runs": 3,
+      "top_k": 5,
+      "num_measurements": 150,
+      "average_latency_seconds": 0.003971894580063235,
+      "median_latency_seconds": 0.0038736699998480617,
+      "average_latency_ms": 3.9718945800632355,
+      "median_latency_ms": 3.8736699998480617
+    },
+    {
+      "model_name": "bge_m3",
+      "collection_name": "techcart_bge_m3",
+      "num_questions": 50,
+      "num_runs": 3,
+      "top_k": 5,
+      "num_measurements": 150,
+      "average_latency_seconds": 0.0036390029799561793,
+      "median_latency_seconds": 0.00398738100011542,
+      "average_latency_ms": 3.6390029799561794,
+      "median_latency_ms": 3.9873810001154197
+    },
+    {
+      "model_name": "nomic_v2",
+      "collection_name": "techcart_nomic_v2",
+      "num_questions": 50,
+      "num_runs": 3,
+      "top_k": 5,
+      "num_measurements": 150,
+      "average_latency_seconds": 0.0020499955532553332,
+      "median_latency_seconds": 0.0019656784998005605,
+      "average_latency_ms": 2.049995553255333,
+      "median_latency_ms": 1.9656784998005605
+    },
+    {
+      "model_name": "qwen3",
+      "collection_name": "techcart_qwen3",
+      "num_questions": 50,
+      "num_runs": 3,
+      "top_k": 5,
+      "num_measurements": 150,
+      "average_latency_seconds": 0.002163462193238956,
+      "median_latency_seconds": 0.0020830889989156276,
+      "average_latency_ms": 2.1634621932389564,
+      "median_latency_ms": 2.0830889989156276
+    },
+    {
+      "model_name": "arctic",
+      "collection_name": "techcart_arctic",
+      "num_questions": 50,
+      "num_runs": 3,
+      "top_k": 5,
+      "num_measurements": 150,
+      "average_latency_seconds": 0.0033075073333384353,
+      "median_latency_seconds": 0.0037121675004527788,
+      "average_latency_ms": 3.3075073333384353,
+      "median_latency_ms": 3.7121675004527788
+    }
+  ]
+}
