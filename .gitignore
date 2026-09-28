@@ -1,19 +1,56 @@
+
 .env
+.env.*
+!.env.example
 
-# Python
-__pycache__/
-*.pyc
+
+**pycache**/
+*.py[cod]
 *.pyo
-*.pyd
-.Python
 
-# Logs
-logs/
-*.log
-
-# VS Code
-.vscode/
-
-# Environnement virtuel
+# Virtual environments
 venv/
+.venv/
 env/
+
+# Python caches / tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+
+# Git
+.git/
+
+
+# Qdrant local vector database
+data/vector_db/
+data/vector_db_backup/
+data/vector_db.bak
+
+
+# General caches & temporary files
+.cache/
+*.log
+*.tmp
+*.temp
+
+# IDEs / editors
+.vscode/
+.idea/
+
+
+# Jupyter
+.ipynb_checkpoints/
+
+
+# OS files
+.DS_Store
+Thumbs.db
