@@ -1,139 +1,110 @@
-#   Start all:    docker compose up -d
-#   Stop all:     docker compose stop ollama
-#   View logs:    docker compose logs -f backend
-#   Rebuild:      docker compose up -d --build
-#   Pull a model: docker compose exec ollama ollama pull mistral
+# ══════════════════════════════════════════════════════════════
+# TechCart - Docker Compose
+#
+# Start all:    docker compose up -d
+# Stop all:     docker compose stop
+# View logs:    docker compose logs -f backend
+# Rebuild:      docker compose up -d --build
+# Pull a model: docker compose exec ollama ollama pull mistral
 # ══════════════════════════════════════════════════════════════
 
 services:
 
-  # ────────────────────────────────────────────────────────────
-  # SERVICE 1 : MONGODB
-  # Stores conversations + embedded messages
-  # ────────────────────────────────────────────────────────────
+  # ── SERVICE 1 : MONGODB ─────────────────────────────────────
   mongodb:
-    image: mongo:8.0.28
-
+    image: mongo:8.3.11
     container_name: techcart_mongodb
-
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
       MONGO_INITDB_DATABASE: ${MONGO_DB}
-
     volumes:
       - mongodb_data:/data/db
-
     ports:
       - "27017:27017"
-
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
-      retries: 5
-
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
-
     networks:
       - techcart_network
-
     logging:
       driver: "json-file"
       options:
         max-size: "20m"
         max-file: "3"
 
-  # ────────────────────────────────────────────────────────────
-  # SERVICE 2 : QDRANT
-  # Stores vector embeddings (vector search)
-  # ────────────────────────────────────────────────────────────
+  # ── SERVICE 2 : QDRANT ──────────────────────────────────────
   qdrant:
-    image: qdrant/qdrant:v1.18.1
-
+    image: qdrant/qdrant:v1.19.1
     container_name: techcart_qdrant
-
     environment:
       QDRANT__SERVICE__HTTP_PORT: 6333
       QDRANT__SERVICE__GRPC_PORT: 6334
       QDRANT__LOG_LEVEL: INFO
-
     volumes:
-      - ./data/vector_db:/qdrant/storage
-
+      # Volume nommé (au lieu d'un bind mount) : évite les problèmes mmap/verrous
+      - qdrant_data:/qdrant/storage
     ports:
-      - "6333:6333"   # REST API
-      - "6334:6334"   # gRPC API
-
+      - "6333:6333"
+      - "6334:6334"
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/6333' || exit 1"]
+      # L'image Qdrant n'a ni curl ni wget : on teste le port TCP avec bash
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
-
+      retries: 12
+      start_period: 40s
     restart: unless-stopped
-
     networks:
       - techcart_network
-
     logging:
       driver: "json-file"
       options:
         max-size: "20m"
         max-file: "5"
 
-  # ────────────────────────────────────────────────────────────
-  # SERVICE 3 : OLLAMA
-  # ────────────────────────────────────────────────────────────
+  # ── SERVICE 3 : OLLAMA ──────────────────────────────────────
   ollama:
     image: ollama/ollama:0.32.5
-
     container_name: techcart_ollama
-
     volumes:
       - ollama_models:/root/.ollama
       - ./scripts/ollama.sh:/entrypoint.sh:ro
-
     ports:
       - "11434:11434"
     dns:
-    - 1.1.1.1
-    - 8.8.8.8
-
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      LLM_MODEL: ${LLM_MODEL}
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]   # évite l'erreur "permission denied"
     healthcheck:
       test: ["CMD-SHELL", "ollama list || exit 1"]
       interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
-
-    entrypoint: ["/entrypoint.sh"]
-
-    environment:
-      LLM_MODEL: ${LLM_MODEL}
-
     networks:
       - techcart_network
-
     logging:
       driver: "json-file"
       options:
         max-size: "20m"
         max-file: "5"
 
-  # ────────────────────────────────────────────────────────────
-  # SERVICE 4 : BACKEND (FastAPI)
-  # ────────────────────────────────────────────────────────────
+  # ── SERVICE 4 : BACKEND (FastAPI) ───────────────────────────
   backend:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
-
     container_name: techcart_backend
-
+    env_file:
+      - .env
     environment:
       MONGODB_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin
       MONGODB_DB: ${MONGO_DB}
@@ -142,17 +113,11 @@ services:
       QDRANT_GRPC_PORT: 6334
       QDRANT_COLLECTION: techcart_products
       OLLAMA_BASE_URL: http://ollama:11434
-
-    env_file:
-      - .env
-
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data
-
     ports:
       - "8000:8000"
-
     depends_on:
       mongodb:
         condition: service_healthy
@@ -160,76 +125,45 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
-
     restart: unless-stopped
-
     networks:
       - techcart_network
-    
     logging:
       driver: "json-file"
       options:
         max-size: "20m"
         max-file: "5"
 
-  # ────────────────────────────────────────────────────────────
-  # SERVICE 5 : FRONTEND (NGINX)
-  # Serves HTML, CSS and JavaScript
-  # ────────────────────────────────────────────────────────────
+  # ── SERVICE 5 : FRONTEND (NGINX) ────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-
     container_name: techcart_frontend
-
     ports:
       - "3000:80"
-
     depends_on:
       - backend
-
     restart: unless-stopped
-
     networks:
       - techcart_network
-
     logging:
       driver: "json-file"
       options:
         max-size: "20m"
         max-file: "5"
 
-  # ────────────────────────────────────────────────────────────
-  # SERVICE : POSTGRESQL
-  # ────────────────────────────────────────────────────────────
-  # postgres:
-  #   image: postgres:16-alpine
-  #   container_name: techcart_postgres
-  #   environment:
-  #     POSTGRES_DB: ${POSTGRES_DB}
-  #     POSTGRES_USER: ${POSTGRES_USER}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  #     POSTGRES_INITDB_ARGS: "--encoding=UTF8"
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./sql:/docker-entrypoint-initdb.d
-  #   ports:
-  #     - "5432:5432"
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   restart: unless-stopped
-  #   networks:
-  #     - techcart_network
-
+# ══════════════════════════════════════════════════════════════
+# VOLUMES
+# ══════════════════════════════════════════════════════════════
 volumes:
   mongodb_data:
+  qdrant_data:
   ollama_models:
-  # postgres_data:
 
+# ══════════════════════════════════════════════════════════════
+# NETWORK
+# ══════════════════════════════════════════════════════════════
 networks:
   techcart_network:
     driver: bridge
