@@ -18,4 +18,12 @@ else
     ollama pull "$LLM_MODEL"
 fi
 
+#embeddings model
+if ollama list | grep -q "$EMBEDDING_MODEL"; then
+    echo "Embeddings model $EMBEDDING_MODEL already exists"
+else
+    echo "Installing embeddings model $EMBEDDING_MODEL..."
+    ollama pull "$EMBEDDING_MODEL"
+fi
+
 wait # this is to keep the cotnaier running 
