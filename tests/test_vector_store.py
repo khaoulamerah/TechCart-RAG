@@ -1,7 +1,11 @@
 import json
+import sys
 import uuid
 from pathlib import Path
 from typing import Any
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.rag.embeddings.models import (
     QDRANT_COLLECTIONS,
@@ -11,9 +15,7 @@ from backend.rag.vector_store.qdrant import (
 )
 
 
-EMBEDDINGS_DIR = Path(
-    "data/processed/embeddings"
-)
+EMBEDDINGS_DIR = PROJECT_ROOT / "data/processed/embeddings"
 
 
 def load_embeddings(
@@ -93,6 +95,7 @@ def create_payload(
 def index_model(
     model_name: str,
     embeddings_file: Path,
+    collection_name:str = "techcart_products",
 ) -> None:
     """Create and populate one Qdrant collection."""
 
@@ -119,9 +122,9 @@ def index_model(
         f"{vector_size}"
     )
 
-    collection_name = QDRANT_COLLECTIONS[
-        model_name
-    ]
+    # collection_name = QDRANT_COLLECTIONS[
+    #     model_name
+    # ]
 
     print(
         f"Qdrant collection: "
@@ -232,13 +235,24 @@ def main() -> None:
         f"{len(QDRANT_COLLECTIONS)}"
     )
 
-    for model_name in QDRANT_COLLECTIONS:
-        embeddings_file = (
-            EMBEDDINGS_DIR
-            / f"markdown_embeddings_{model_name}.json"
-        )
+    # for model_name in QDRANT_COLLECTIONS:
+    #     embeddings_file = (
+    #         EMBEDDINGS_DIR
+    #         / f"markdown_embeddings_{model_name}.json"
+    #     )
 
-        index_model(
+    #     index_model(
+    #         model_name=model_name,
+    #         embeddings_file=embeddings_file,
+    #     )
+
+    model_name = "bge_m3"
+    embeddings_file = (
+            EMBEDDINGS_DIR
+            / f"markdown_embeddings_bge_m3.json"
+        )
+    
+    index_model(
             model_name=model_name,
             embeddings_file=embeddings_file,
         )
@@ -249,13 +263,17 @@ def main() -> None:
 
     print("\nQdrant collections:")
 
-    for collection_name in (
-        QDRANT_COLLECTIONS.values()
-    ):
-        print(
-            f"  - {collection_name}"
-        )
+    # for collection_name in (
+    #     QDRANT_COLLECTIONS.values()
+    # ):
+    #     print(
+    #         f"  - {collection_name}"
+    #     )
 
 
 if __name__ == "__main__":
+
+    print(
+        f"Project root: {PROJECT_ROOT}"
+    )
     main()

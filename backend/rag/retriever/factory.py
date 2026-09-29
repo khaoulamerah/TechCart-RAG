@@ -28,7 +28,7 @@ def get_retriever() -> Retriever:
         ↓
     Top-K
     """
-
+    print("EMMMMMMMMMMMMMMbider")
     embedder = (
         OllamaEmbeddingStrategy(
             model=settings.EMBEDDING_MODEL,
@@ -36,6 +36,7 @@ def get_retriever() -> Retriever:
         )
     )
 
+    print("Vvvvvvvvvvvvvvvvvvector store")
     vector_store = QdrantVectorStore(
         host=settings.QDRANT_HOST,
         port=settings.QDRANT_PORT,
@@ -44,15 +45,18 @@ def get_retriever() -> Retriever:
         ),
     )
 
+    print("Rrrrrrrrrrrrrreranker")
     reranker = BGEReranker(
         model_name=settings.RERANKER_MODEL,
         use_fp16=settings.RERANKER_USE_FP16,
     )
-
-    return Retriever(
+    print("Retrieeeeeeeeeeeever")
+    r =  Retriever(
         embedder=embedder,
         vector_store=vector_store,
         reranker=reranker,
         retrieval_k=settings.RETRIEVAL_K,
         top_k=settings.TOP_K_RESULTS,
-    )
+    )   
+    print("Retrieeeeeeeeeeeever done")
+    return r
