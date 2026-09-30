@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Any
@@ -10,23 +9,17 @@ from backend.rag.generator.base import (
     LLMProvider,
     LLMProviderError,
 )
-from backend.rag.prompt import (
-    build_rag_prompt,
-)
-from backend.rag.retriever.retriever import (
-    Retriever,
-)
-from backend.services.conversation import (
-    ConversationService,
-)
+from backend.rag.prompt import build_rag_prompt
+from backend.rag.retriever.retriever import Retriever
+from backend.services.conversation import ConversationService
 
 
 def utcnow() -> datetime:
+    """Return the current UTC datetime."""
     return datetime.now(timezone.utc)
 
 
 class ChatService:
-    """Application service for the TechCart RAG chat."""
 
     def __init__(
         self,
@@ -34,13 +27,8 @@ class ChatService:
         llm_provider: LLMProvider,
         retriever: Retriever,
     ) -> None:
-
-        self.conversation_service = (
-            conversation_service
-        )
-
+        self.conversation_service = conversation_service
         self.llm_provider = llm_provider
-
         self.retriever = retriever
 
     async def prepare_conversation(
@@ -50,9 +38,7 @@ class ChatService:
         conversation_id: str | None,
     ) -> dict[str, Any]:
 
-        cleaned_message = (
-            message or ""
-        ).strip()
+        cleaned_message = (message or "").strip()
 
         if not cleaned_message:
             raise HTTPException(
@@ -60,51 +46,64 @@ class ChatService:
                 detail="Message cannot be empty.",
             )
 
-        # Existing conversation
+        # 1. Existing conversation
         if conversation_id:
-
-            conversation = (
-                await self.conversation_service
-                .get_conversation(
-                    conversation_id
+            try:
+                conversation = (
+                    await self.conversation_service.get_conversation(
+                        conversation_id
+                    )
                 )
-            )
 
-        # Existing/new session
-        else:
+                return {
+                    "cleaned_message": cleaned_message,
+                    "conversation_id": conversation["id"],
+                    "session_id": conversation["session_id"],
+                }
 
-            session_id = (
-                session_id or str(uuid4())
-            )
+            except HTTPException as exc:
+                if exc.status_code != status.HTTP_404_NOT_FOUND:
+                    raise
 
-            conversation = (
-                await self.conversation_service
-                .get_or_create_by_session(
-                    session_id
-                )
-            )
+                # The frontend has an obsolete conversation ID.
+                # Recover automatically using the session.
 
-            conversation_id = (
-                conversation["id"]
+
+        # 2. Existing session or new session
+        resolved_session_id = session_id or str(uuid4())
+
+        conversation = (
+            await self.conversation_service.get_or_create_by_session(
+                resolved_session_id
             )
+        )
 
         return {
             "cleaned_message": cleaned_message,
-            "conversation_id": conversation_id,
+            "conversation_id": conversation["id"],
             "session_id": conversation["session_id"],
         }
 
     async def stream_message(
         self,
-        cleaned_message: str,
-        conversation_id: str,
-        session_id: str,
+        message: str,
+        session_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
 
-        # ─────────────────────────────────────────
-        # 1. Save user message
-        # ─────────────────────────────────────────
+        # 1. Prepare conversation
+        conversation_data = await self.prepare_conversation(
+            message=message,
+            session_id=session_id,
+            conversation_id=conversation_id,
+        )
 
+        cleaned_message = conversation_data["cleaned_message"]
+        conversation_id = conversation_data["conversation_id"]
+        session_id = conversation_data["session_id"]
+
+
+        # 2. Save user message
         await self.conversation_service.add_message(
             conversation_id,
             {
@@ -113,70 +112,48 @@ class ChatService:
             },
         )
 
-        # Send metadata immediately.
-        yield {
-            "type": "metadata",
-            "conversation_id": conversation_id,
-            "session_id": session_id,
-        }
-
-        # ─────────────────────────────────────────
-        # 2. Retrieve + rerank
-        #
-        # Run CPU/blocking work outside the
-        # FastAPI event loop.
-        # ─────────────────────────────────────────
-
+        # 3. Retrieve relevant documents
         try:
-
-            retrieved_results = (
-                await asyncio.to_thread(
-                    self.retriever.retrieve,
-                    cleaned_message,
-                )
+            retrieved_results = await self.retriever.retrieve(
+                cleaned_message
             )
 
         except Exception:
-
             yield {
                 "type": "error",
                 "message": (
-                    "I could not retrieve "
-                    "relevant information."
+                    "The knowledge base is currently unavailable."
                 ),
             }
-
             return
 
-        # ─────────────────────────────────────────
-        # 3. Build RAG prompt
-        # ─────────────────────────────────────────
+
+        # 4. Build RAG prompt
 
         prompt = build_rag_prompt(
             question=cleaned_message,
             results=retrieved_results,
         )
 
-        # ─────────────────────────────────────────
-        # 4. Generate response
-        # ─────────────────────────────────────────
 
+        # 5. Send metadata
+        yield {
+            "type": "metadata",
+            "conversation_id": conversation_id,
+            "session_id": session_id,
+        }
+
+        # 6. Generate response
         full_response: list[str] = []
 
         try:
-
-            async for chunk in (
-                self.llm_provider.generate_stream(
-                    prompt
-                )
+            async for chunk in self.llm_provider.generate_stream(
+                prompt
             ):
-
                 if not chunk:
                     continue
 
-                full_response.append(
-                    chunk
-                )
+                full_response.append(chunk)
 
                 yield {
                     "type": "token",
@@ -184,41 +161,27 @@ class ChatService:
                 }
 
         except LLMProviderError:
-
             yield {
                 "type": "error",
                 "message": (
-                    "The AI model is currently "
-                    "unavailable."
+                    "The AI model is currently unavailable."
                 ),
             }
-
             return
 
-        # ─────────────────────────────────────────
-        # 5. Validate response
-        # ─────────────────────────────────────────
-
-        reply_text = "".join(
-            full_response
-        ).strip()
+        # 7. Validate response
+        reply_text = "".join(full_response).strip()
 
         if not reply_text:
-
             yield {
                 "type": "error",
                 "message": (
-                    "The AI model returned "
-                    "an empty response."
+                    "The AI model returned an empty response."
                 ),
             }
-
             return
 
-        # ─────────────────────────────────────────
-        # 6. Save assistant message
-        # ─────────────────────────────────────────
-
+        # 8. Save assistant message
         await self.conversation_service.add_message(
             conversation_id,
             {
@@ -227,10 +190,7 @@ class ChatService:
             },
         )
 
-        # ─────────────────────────────────────────
-        # 7. Finish
-        # ─────────────────────────────────────────
-
+        # 9. Finish
         yield {
             "type": "done",
             "conversation_id": conversation_id,

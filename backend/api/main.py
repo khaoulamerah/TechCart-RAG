@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -14,107 +13,40 @@ from backend.database.mongodb import (
     close_mongo_connection,
     connect_to_mongo,
 )
-from backend.rag.generator.factory import (
-    get_llm_provider,
-)
-from backend.rag.retriever.factory import (
-    get_retriever,
-)
-
 
 logger = logging.getLogger("techcart.api")
 
 
 @asynccontextmanager
-async def lifespan(
-    app: FastAPI,
-):
+async def lifespan(app: FastAPI):
 
     logger.info("Starting TechCart backend...")
 
-    # ─────────────────────────────────────────────
-    # 1. MongoDB
-    # ─────────────────────────────────────────────
-
-    await connect_to_mongo()
-
-    logger.info(
-        "MongoDB connection established."
-    )
-
-    # ─────────────────────────────────────────────
-    # 2. Load retriever
-    # ─────────────────────────────────────────────
-
+    # ---------------------------------------------------------
+    # MongoDB
+    # ---------------------------------------------------------
     try:
-        logger.info(
-            "Loading retriever and BGE reranker..."
-        )
-
-        retriever = await asyncio.to_thread(
-            get_retriever
-        )
+        await connect_to_mongo()
 
         logger.info(
-            "Retriever loaded successfully."
-        )
-
-        # Warm-up:
-        # BGE-M3 → Qdrant → BGE reranker
-        await asyncio.to_thread(
-            retriever.warmup
-        )
-
-        logger.info(
-            "Retriever warm-up completed."
+            "MongoDB connection established."
         )
 
     except Exception:
         logger.exception(
-            "Retriever warm-up failed."
+            "MongoDB is unavailable. "
+            "Backend will continue without MongoDB."
         )
-
-        await close_mongo_connection()
-
-        raise
-
-    # ─────────────────────────────────────────────
-    # 3. Load + warm-up LLM
-    # ─────────────────────────────────────────────
-
-    try:
-        logger.info(
-            "Loading LLM provider..."
-        )
-
-        llm_provider = get_llm_provider()
-
-        if hasattr(llm_provider, "warm_up"):
-            await llm_provider.warm_up()
-
-        logger.info(
-            "LLM warm-up completed."
-        )
-
-    except Exception:
-        logger.exception(
-            "LLM warm-up failed."
-        )
-
-        await close_mongo_connection()
-
-        raise
 
     logger.info(
-        "TechCart backend is ready."
+        "TechCart backend started."
     )
 
     yield
 
-    # ─────────────────────────────────────────────
-    # SHUTDOWN
-    # ─────────────────────────────────────────────
-
+    # ---------------------------------------------------------
+    # Shutdown
+    # ---------------------------------------------------------
     logger.info(
         "Shutting down TechCart backend..."
     )
@@ -133,10 +65,6 @@ app = FastAPI(
 )
 
 
-# ─────────────────────────────────────────────
-# CORS
-# ─────────────────────────────────────────────
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -151,10 +79,6 @@ app.add_middleware(
 )
 
 
-# ─────────────────────────────────────────────
-# ROOT
-# ─────────────────────────────────────────────
-
 @app.get("/")
 async def root() -> dict[str, str]:
     return {
@@ -162,18 +86,6 @@ async def root() -> dict[str, str]:
     }
 
 
-# ─────────────────────────────────────────────
-# ROUTES
-# ─────────────────────────────────────────────
-
-app.include_router(
-    health.router
-)
-
-app.include_router(
-    chat.router
-)
-
-app.include_router(
-    conversation.router
-)
+app.include_router(health.router)
+app.include_router(chat.router)
+app.include_router(conversation.router)

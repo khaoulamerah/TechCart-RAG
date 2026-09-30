@@ -1,15 +1,7 @@
 FROM python:3.11-slim
 
-# ============================================================
-# METADATA
-# ============================================================
-
 LABEL maintainer="TechCart"
 LABEL description="TechCart RAG Backend - FastAPI"
-
-# ============================================================
-# PYTHON ENVIRONMENT
-# ============================================================
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -20,46 +12,23 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# ============================================================
-# SYSTEM DEPENDENCIES
-# ============================================================
+# ---------------------------------------------------------
+# System dependencies
+# ---------------------------------------------------------
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ============================================================
-# PYTHON DEPENDENCIES
-# ============================================================
+# ---------------------------------------------------------
+# Python dependencies
+# ---------------------------------------------------------
 
 COPY requirements.txt .
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install --no-cache-dir -r requirements.txt
-
-# ---------------------------------------------------------
-# Download Hugging Face reranker model
-# ---------------------------------------------------------
-
-RUN python - <<'PY'
-from huggingface_hub import snapshot_download
-
-MODEL_NAME = "BAAI/bge-reranker-v2-m3"
-
-print("=" * 60)
-print(f"Downloading reranker model: {MODEL_NAME}")
-print("=" * 60)
-
-model_path = snapshot_download(
-    repo_id=MODEL_NAME,
-)
-
-print("=" * 60)
-print("Reranker model downloaded successfully.")
-print(f"Model path: {model_path}")
-print("=" * 60)
-PY
 
 # ---------------------------------------------------------
 # Application
@@ -68,16 +37,15 @@ PY
 COPY backend/ ./backend/
 COPY data/ ./data/
 
-# ============================================================
-# PORT
-# ============================================================
+# ---------------------------------------------------------
+# Port
+# ---------------------------------------------------------
 
 EXPOSE 8000
 
-# ============================================================
-# HEALTHCHECK
-# ============================================================
-
+# ---------------------------------------------------------
+# Healthcheck
+# ---------------------------------------------------------
 HEALTHCHECK \
     --interval=15s \
     --timeout=5s \
@@ -85,8 +53,7 @@ HEALTHCHECK \
     --retries=5 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# ============================================================
-# START APPLICATION
-# ============================================================
-
+# ---------------------------------------------------------
+# Start FastAPI
+# ---------------------------------------------------------
 CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
