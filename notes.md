@@ -9,7 +9,7 @@ The reranker is downloaded/loaded through Hugging Face, independently from Ollam
 - should create a propre why from the data prossising to save data in the qdrant.  ( knowing taht i fix the test/test_vector_store.py to use the collection name as a temp fix)
 
 - this opirations should not be on the test file.
-== >
+== > i moved them 
 
 - the backend should not be dependant on the other compontest to run, like qdrant, ollama, etc.  
 if one of them fails, the backend should still be able to run and return an error message. 
@@ -18,5 +18,4 @@ if one of them fails, the backend should still be able to run and return an erro
 
 ## TODO:
 - add suport to GPU users in ollama and qdrant.  
-
 ==> ?? 
