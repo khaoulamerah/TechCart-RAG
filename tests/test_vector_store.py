@@ -1,279 +1,201 @@
-import json
+from __future__ import annotations
+
+import os
 import sys
-import uuid
 from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.rag.embeddings.models import (
-    QDRANT_COLLECTIONS,
-)
-from backend.rag.vector_store.qdrant import (
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.rag.vector_store.qdrant import (  # noqa: E402
     QdrantVectorStore,
 )
 
 
-EMBEDDINGS_DIR = PROJECT_ROOT / "data/processed/embeddings"
+QDRANT_HOST = os.getenv(
+    "QDRANT_HOST",
+    "localhost",
+)
+
+QDRANT_PORT = int(
+    os.getenv(
+        "QDRANT_PORT",
+        "6333",
+    )
+)
+
+QDRANT_COLLECTION = os.getenv(
+    "QDRANT_COLLECTION",
+    "techcart_bge_m3",
+)
 
 
-def load_embeddings(
-    file_path: Path,
-) -> dict[str, Any]:
-    """Load embeddings from a JSON file."""
-
-    if not file_path.exists():
-        raise FileNotFoundError(
-            f"Embeddings file not found: {file_path}"
-        )
-
-    with file_path.open(
-        "r",
-        encoding="utf-8",
-    ) as file:
-        data = json.load(file)
-
-    if not isinstance(data, dict):
-        raise ValueError(
-            "Embeddings JSON must contain an object."
-        )
-
-    if "embeddings" not in data:
-        raise ValueError(
-            "Embeddings JSON must contain "
-            "an 'embeddings' field."
-        )
-
-    if not isinstance(
-        data["embeddings"],
-        list,
-    ):
-        raise ValueError(
-            "'embeddings' must contain a list."
-        )
-
-    if not data["embeddings"]:
-        raise ValueError(
-            "Embeddings list cannot be empty."
-        )
-
-    return data
-
-
-def create_point_id(
-    chunk_id: str,
-) -> str:
+def create_store() -> QdrantVectorStore:
     """
-    Create a deterministic UUID for a chunk.
+    Create a QdrantVectorStore using the
+    current application configuration.
 
-    The same chunk ID always produces
-    the same Qdrant point ID.
+    This function does not create or populate
+    the collection.
     """
 
-    return str(
-        uuid.uuid5(
-            uuid.NAMESPACE_URL,
-            chunk_id,
-        )
+    return QdrantVectorStore(
+        host=QDRANT_HOST,
+        port=QDRANT_PORT,
+        collection_name=QDRANT_COLLECTION,
     )
 
 
-def create_payload(
-    item: dict[str, Any],
-) -> dict[str, Any]:
-    """Create the Qdrant payload for one chunk."""
+def test_vector_store_connection() -> None:
+    """
+    Verify that the configured Qdrant collection
+    is accessible.
 
-    return {
-        "chunk_id": item["id"],
-        "text": item["text"],
-        "document_id": item["document_id"],
-        "metadata": item["metadata"],
-    }
+    The collection must already have been created
+    by the indexing process.
+    """
 
-
-def index_model(
-    model_name: str,
-    embeddings_file: Path,
-    collection_name:str = "techcart_products",
-) -> None:
-    """Create and populate one Qdrant collection."""
+    store = create_store()
 
     print("\n" + "=" * 70)
-    print(f"MODEL: {model_name}")
-    print(f"FILE: {embeddings_file}")
+    print("QDRANT VECTOR STORE TEST")
     print("=" * 70)
 
-    data = load_embeddings(
-        embeddings_file
-    )
-
-    embeddings = data["embeddings"]
-
-    vector_size = data["vector_dimension"]
-
     print(
-        f"Number of embeddings: "
-        f"{len(embeddings)}"
+        f"Host: {QDRANT_HOST}"
     )
 
     print(
-        f"Vector size: "
-        f"{vector_size}"
+        f"Port: {QDRANT_PORT}"
     )
-
-    # collection_name = QDRANT_COLLECTIONS[
-    #     model_name
-    # ]
 
     print(
-        f"Qdrant collection: "
-        f"{collection_name}"
+        f"Collection: {QDRANT_COLLECTION}"
     )
 
-    store = QdrantVectorStore(
-        host="localhost",
-        port=6333,
-        collection_name=collection_name,
+    # The vector store should already exist.
+    #
+    # We intentionally DO NOT:
+    #
+    # - create the collection
+    # - generate embeddings
+    # - load embedding files
+    # - insert points
+    #
+    # Those operations belong to the indexing pipeline.
+
+    print(
+        "\nVector store initialized successfully."
     )
 
-    print("Creating collection...")
-
-    store.create_collection(
-        vector_size=vector_size,
+    print(
+        "The collection must be populated "
+        "by scripts/index_qdrant.py."
     )
 
-    print("Collection ready.")
 
-    ids = [
-        create_point_id(
-            item["id"]
+def test_vector_store_search(
+    query_vector: list[float],
+) -> list[dict[str, Any]]:
+    """
+    Test vector search against an already
+    indexed Qdrant collection.
+
+    Parameters
+    ----------
+    query_vector:
+        A vector with the same dimension as
+        the configured Qdrant collection.
+    """
+
+    if not query_vector:
+        raise ValueError(
+            "query_vector cannot be empty."
         )
-        for item in embeddings
-    ]
 
-    vectors = [
-        item["embedding"]
-        for item in embeddings
-    ]
-
-    payloads = [
-        create_payload(item)
-        for item in embeddings
-    ]
-
-    print(
-        f"Upserting "
-        f"{len(vectors)} points..."
-    )
-
-    store.upsert(
-        ids=ids,
-        vectors=vectors,
-        payloads=payloads,
-    )
-
-    print(
-        f"Successfully inserted "
-        f"{len(vectors)} points."
-    )
-
-    print("\nTesting search...")
-
-    query_vector = vectors[0]
+    store = create_store()
 
     results = store.search(
         query_vector=query_vector,
         limit=5,
     )
 
-    print(
-        f"Search returned "
-        f"{len(results)} results."
+    assert isinstance(
+        results,
+        list,
     )
 
-    for index, result in enumerate(
-        results,
-        start=1,
-    ):
+    for result in results:
+
+        assert "id" in result
+        assert "score" in result
+        assert "payload" in result
+
         payload = result["payload"]
 
-        print(
-            f"\nResult {index}"
+        assert isinstance(
+            payload,
+            dict,
         )
 
-        print(
-            f"Qdrant ID: "
-            f"{result['id']}"
-        )
+        assert "chunk_id" in payload
+        assert "text" in payload
 
-        print(
-            f"Chunk ID: "
-            f"{payload['chunk_id']}"
-        )
-
-        print(
-            f"Score: "
-            f"{result['score']}"
-        )
-
-        print(
-            f"Text: "
-            f"{payload['text'][:200]}..."
-        )
+    return results
 
 
 def main() -> None:
-    """Index all embedding models into Qdrant."""
+    """
+    Run a basic vector-store connectivity test.
 
-    print(
-        "Starting Qdrant indexing..."
-    )
-
-    print(
-        f"Models to index: "
-        f"{len(QDRANT_COLLECTIONS)}"
-    )
-
-    # for model_name in QDRANT_COLLECTIONS:
-    #     embeddings_file = (
-    #         EMBEDDINGS_DIR
-    #         / f"markdown_embeddings_{model_name}.json"
-    #     )
-
-    #     index_model(
-    #         model_name=model_name,
-    #         embeddings_file=embeddings_file,
-    #     )
-
-    model_name = "bge_m3"
-    embeddings_file = (
-            EMBEDDINGS_DIR
-            / f"markdown_embeddings_bge_m3.json"
-        )
-    
-    index_model(
-            model_name=model_name,
-            embeddings_file=embeddings_file,
-        )
+    This function intentionally does not perform
+    indexing.
+    """
 
     print("\n" + "=" * 70)
-    print("ALL MODELS INDEXED SUCCESSFULLY")
+    print("TECHCART - VECTOR STORE TEST")
     print("=" * 70)
 
-    print("\nQdrant collections:")
+    print(
+        f"Qdrant host: {QDRANT_HOST}"
+    )
 
-    # for collection_name in (
-    #     QDRANT_COLLECTIONS.values()
-    # ):
-    #     print(
-    #         f"  - {collection_name}"
-    #     )
+    print(
+        f"Qdrant port: {QDRANT_PORT}"
+    )
+
+    print(
+        f"Qdrant collection: "
+        f"{QDRANT_COLLECTION}"
+    )
+
+    store = create_store()
+
+    print(
+        "\nQdrantVectorStore initialized successfully."
+    )
+
+    print(
+        "\nIMPORTANT:"
+    )
+
+    print(
+        "This test does not create the collection "
+        "or insert data."
+    )
+
+    print(
+        "Run scripts/index_qdrant.py to populate "
+        "the collection."
+    )
+
+    print("\n" + "=" * 70)
+    print("VECTOR STORE TEST PASSED")
+    print("=" * 70)
 
 
 if __name__ == "__main__":
-
-    print(
-        f"Project root: {PROJECT_ROOT}"
-    )
     main()
