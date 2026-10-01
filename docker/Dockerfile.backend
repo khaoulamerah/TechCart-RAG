@@ -15,11 +15,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONPATH=/app
-
-# ============================================================
-# WORKING DIRECTORY
-# ============================================================
+    PYTHONPATH=/app \
+    HF_HOME=/root/.cache/huggingface
 
 WORKDIR /app
 
@@ -41,9 +38,32 @@ COPY requirements.txt .
 RUN python -m pip install --upgrade pip \
     && python -m pip install --no-cache-dir -r requirements.txt
 
-# ============================================================
-# APPLICATION
-# ============================================================
+# ---------------------------------------------------------
+# Download Hugging Face reranker model
+# ---------------------------------------------------------
+
+RUN python - <<'PY'
+from huggingface_hub import snapshot_download
+
+MODEL_NAME = "BAAI/bge-reranker-v2-m3"
+
+print("=" * 60)
+print(f"Downloading reranker model: {MODEL_NAME}")
+print("=" * 60)
+
+model_path = snapshot_download(
+    repo_id=MODEL_NAME,
+)
+
+print("=" * 60)
+print("Reranker model downloaded successfully.")
+print(f"Model path: {model_path}")
+print("=" * 60)
+PY
+
+# ---------------------------------------------------------
+# Application
+# ---------------------------------------------------------
 
 COPY backend/ ./backend/
 COPY data/ ./data/

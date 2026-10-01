@@ -1,0 +1,173 @@
+services:
+
+  # ── SERVICE 1 : MONGODB ─────────────────────────────────────
+  mongodb:
+    image: mongo:8.3.11
+    container_name: techcart_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - techcart_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ── SERVICE 2 : QDRANT ──────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    container_name: techcart_qdrant
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__LOG_LEVEL: INFO
+    volumes:
+      # Volume nommé (au lieu d'un bind mount) : évite les problèmes mmap/verrous
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    healthcheck:
+      # L'image Qdrant n'a ni curl ni wget : on teste le port TCP avec bash
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - techcart_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ── SERVICE 3 : OLLAMA ──────────────────────────────────────
+  ollama:
+    image: ollama/ollama:0.32.5
+    container_name: techcart_ollama
+    volumes:
+      - ollama_models:/root/.ollama
+      - ./scripts/ollama.sh:/entrypoint.sh:ro
+    ports:
+      - "11434:11434"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    environment:
+      LLM_MODEL: ${LLM_MODEL}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]   # évite l'erreur "permission denied"
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - techcart_network
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+                
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ── SERVICE 4 : BACKEND (FastAPI) ───────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: techcart_backend
+    env_file:
+      - .env
+    environment:
+      MONGODB_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin
+      MONGODB_DB: ${MONGO_DB}
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      QDRANT_GRPC_PORT: 6334
+      QDRANT_COLLECTION: techcart_products
+      OLLAMA_BASE_URL: http://ollama:11434
+
+      RERANKER_MODEL: ${RERANKER_MODEL}
+      RERANKER_USE_FP16: ${RERANKER_USE_FP16}
+    volumes:
+      - ./backend:/app/backend
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - techcart_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ── SERVICE 5 : FRONTEND (NGINX) ────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: techcart_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - techcart_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+# ══════════════════════════════════════════════════════════════
+# VOLUMES
+# ══════════════════════════════════════════════════════════════
+volumes:
+  mongodb_data:
+  qdrant_data:
+  ollama_models:
+
+# ══════════════════════════════════════════════════════════════
+# NETWORK
+# ══════════════════════════════════════════════════════════════
+networks:
+  techcart_network:
+    driver: bridge

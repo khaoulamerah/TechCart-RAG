@@ -78,6 +78,7 @@ services:
       - 8.8.8.8
     environment:
       LLM_MODEL: ${LLM_MODEL}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL}
     entrypoint: ["/bin/bash", "/entrypoint.sh"]   # évite l'erreur "permission denied"
     healthcheck:
       test: ["CMD-SHELL", "ollama list || exit 1"]
@@ -110,6 +111,9 @@ services:
       QDRANT_GRPC_PORT: 6334
       QDRANT_COLLECTION: techcart_products
       OLLAMA_BASE_URL: http://ollama:11434
+
+      RERANKER_MODEL: ${RERANKER_MODEL}
+      RERANKER_USE_FP16: ${RERANKER_USE_FP16}
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data
