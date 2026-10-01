@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -13,19 +14,71 @@ from backend.database.mongodb import (
     close_mongo_connection,
     connect_to_mongo,
 )
+from backend.rag.generator.factory import (
+    get_llm_provider,
+)
+from backend.rag.retriever.factory import (
+    get_retriever,
+)
 
 logger = logging.getLogger("techcart.api")
+
+
+async def warmup_llm() -> None:
+
+    try:
+
+        provider = get_llm_provider()
+
+        await provider.warm_up()
+
+        logger.info(
+            "LLM warm-up completed successfully."
+        )
+
+    except Exception:
+
+        logger.exception(
+            "LLM warm-up failed. "
+            "Backend will continue running."
+        )
+
+
+async def warmup_reranker() -> None:
+
+    try:
+
+        retriever = get_retriever()
+
+        await asyncio.to_thread(
+            retriever.reranker.warm_up
+        )
+
+        logger.info(
+            "Reranker warm-up completed successfully."
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Reranker warm-up failed. "
+            "Backend will continue running."
+        )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    logger.info("Starting TechCart backend...")
+    logger.info(
+        "Starting TechCart backend..."
+    )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # MongoDB
-    # ---------------------------------------------------------
+    # =========================================================
+
     try:
+
         await connect_to_mongo()
 
         logger.info(
@@ -33,29 +86,50 @@ async def lifespan(app: FastAPI):
         )
 
     except Exception:
+
         logger.exception(
             "MongoDB is unavailable. "
             "Backend will continue without MongoDB."
         )
 
+    warmup_tasks = [
+        asyncio.create_task(
+            warmup_llm()
+        ),
+        asyncio.create_task(
+            warmup_reranker()
+        ),
+    ]
+
     logger.info(
         "TechCart backend started."
     )
 
-    yield
+    try:
 
-    # ---------------------------------------------------------
-    # Shutdown
-    # ---------------------------------------------------------
-    logger.info(
-        "Shutting down TechCart backend..."
-    )
+        yield
 
-    await close_mongo_connection()
+    finally:
 
-    logger.info(
-        "TechCart backend stopped."
-    )
+        logger.info(
+            "Shutting down TechCart backend..."
+        )
+
+        for task in warmup_tasks:
+
+            if not task.done():
+                task.cancel()
+
+        await asyncio.gather(
+            *warmup_tasks,
+            return_exceptions=True,
+        )
+
+        await close_mongo_connection()
+
+        logger.info(
+            "TechCart backend stopped."
+        )
 
 
 app = FastAPI(
@@ -81,11 +155,20 @@ app.add_middleware(
 
 @app.get("/")
 async def root() -> dict[str, str]:
+
     return {
         "message": "TechCart Backend is running!"
     }
 
 
-app.include_router(health.router)
-app.include_router(chat.router)
-app.include_router(conversation.router)
+app.include_router(
+    health.router
+)
+
+app.include_router(
+    chat.router
+)
+
+app.include_router(
+    conversation.router
+)

@@ -14,24 +14,12 @@ from backend.api.schemas.conversation import (
     ConversationListResponse,
     ConversationResponse,
 )
-from backend.rag.generator.base import (
-    LLMProvider,
-)
-from backend.rag.generator.factory import (
-    get_llm_provider,
-)
-from backend.rag.retriever.factory import (
-    get_retriever,
-)
-from backend.rag.retriever.retriever import (
-    Retriever,
-)
-from backend.services.chat import (
-    ChatService,
-)
-from backend.services.conversation import (
-    ConversationService,
-)
+from backend.rag.generator.base import LLMProvider
+from backend.rag.generator.factory import get_llm_provider
+from backend.rag.retriever.factory import get_retriever
+from backend.rag.retriever.retriever import Retriever
+from backend.services.chat import ChatService
+from backend.services.conversation import ConversationService
 
 
 router = APIRouter(
@@ -51,8 +39,6 @@ def get_chat_service(
         get_retriever
     ),
 ) -> ChatService:
-    """Create the ChatService."""
-
     return ChatService(
         conversation_service=conversation_service,
         llm_provider=llm_provider,
@@ -64,8 +50,6 @@ def format_sse(
     event: str,
     data: dict,
 ) -> str:
-    """Format one Server-Sent Event."""
-
     return (
         f"event: {event}\n"
         f"data: "
@@ -83,27 +67,13 @@ async def send_chat_message(
 ):
     """Send a message through the RAG pipeline."""
 
-    resolved = (
-        await chat_service.prepare_conversation(
-            message=payload.message,
-            session_id=payload.session_id,
-            conversation_id=payload.conversation_id,
-        )
-    )
-
     async def event_generator() -> AsyncIterator[str]:
         try:
             async for event in (
                 chat_service.stream_message(
-                    cleaned_message=(
-                        resolved["cleaned_message"]
-                    ),
-                    conversation_id=(
-                        resolved["conversation_id"]
-                    ),
-                    session_id=(
-                        resolved["session_id"]
-                    ),
+                    message=payload.message,
+                    session_id=payload.session_id,
+                    conversation_id=payload.conversation_id,
                 )
             ):
                 event_type = event.get(
@@ -116,14 +86,15 @@ async def send_chat_message(
                     data=event,
                 )
 
-        except Exception:
+        except Exception as exc:
             yield format_sse(
                 event="error",
                 data={
                     "message": (
                         "An unexpected error occurred "
                         "while generating the response."
-                    )
+                    ),
+                    "detail": str(exc),
                 },
             )
 

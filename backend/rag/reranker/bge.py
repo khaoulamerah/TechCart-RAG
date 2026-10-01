@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import threading
 from typing import Any
 
 from FlagEmbedding import FlagReranker
@@ -19,11 +22,30 @@ class BGEReranker(Reranker):
             )
 
         self.model_name = model_name
+        self.use_fp16 = use_fp16
 
-        self.reranker = FlagReranker(
-            model_name,
-            use_fp16=use_fp16,
-        )
+        self._reranker: FlagReranker | None = None
+        self._load_lock = threading.Lock()
+
+    def _get_reranker(self) -> FlagReranker:
+
+        if self._reranker is not None:
+            return self._reranker
+
+        with self._load_lock:
+
+            if self._reranker is None:
+
+                self._reranker = FlagReranker(
+                    self.model_name,
+                    use_fp16=self.use_fp16,
+                )
+
+        return self._reranker
+
+    def warm_up(self) -> None:
+
+        self._get_reranker()
 
     def rerank(
         self,
@@ -32,7 +54,7 @@ class BGEReranker(Reranker):
         top_k: int,
     ) -> list[dict[str, Any]]:
 
-        if not query.strip():
+        if not query or not query.strip():
             raise ValueError(
                 "Query cannot be empty."
             )
@@ -45,9 +67,12 @@ class BGEReranker(Reranker):
                 "top_k must be greater than zero."
             )
 
-        pairs = []
+        reranker = self._get_reranker()
+
+        pairs: list[list[str]] = []
 
         for document in documents:
+
             payload = document.get(
                 "payload",
                 {},
@@ -65,7 +90,7 @@ class BGEReranker(Reranker):
                 ]
             )
 
-        scores = self.reranker.compute_score(
+        scores = reranker.compute_score(
             pairs,
             normalize=True,
         )
@@ -73,7 +98,7 @@ class BGEReranker(Reranker):
         if isinstance(scores, float):
             scores = [scores]
 
-        reranked_documents = []
+        reranked_documents: list[dict[str, Any]] = []
 
         for document, score in zip(
             documents,

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Any
@@ -20,7 +23,6 @@ def utcnow() -> datetime:
 
 
 class ChatService:
-
     def __init__(
         self,
         conversation_service: ConversationService,
@@ -46,7 +48,7 @@ class ChatService:
                 detail="Message cannot be empty.",
             )
 
-        # 1. Existing conversation
+        # Try the conversation sent by the frontend.
         if conversation_id:
             try:
                 conversation = (
@@ -65,12 +67,12 @@ class ChatService:
                 if exc.status_code != status.HTTP_404_NOT_FOUND:
                     raise
 
-                # The frontend has an obsolete conversation ID.
-                # Recover automatically using the session.
+                # The frontend may have an obsolete ID.
+                # We recover through the session below.
 
-
-        # 2. Existing session or new session
-        resolved_session_id = session_id or str(uuid4())
+        resolved_session_id = (
+            session_id or str(uuid4())
+        )
 
         conversation = (
             await self.conversation_service.get_or_create_by_session(
@@ -90,20 +92,36 @@ class ChatService:
         session_id: str | None = None,
         conversation_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
+        """Run the complete RAG + generation pipeline."""
 
-        # 1. Prepare conversation
-        conversation_data = await self.prepare_conversation(
-            message=message,
-            session_id=session_id,
-            conversation_id=conversation_id,
+        # -----------------------------------------------------
+        # 1. Conversation
+        # -----------------------------------------------------
+
+        conversation_data = (
+            await self.prepare_conversation(
+                message=message,
+                session_id=session_id,
+                conversation_id=conversation_id,
+            )
         )
 
-        cleaned_message = conversation_data["cleaned_message"]
-        conversation_id = conversation_data["conversation_id"]
-        session_id = conversation_data["session_id"]
+        cleaned_message = conversation_data[
+            "cleaned_message"
+        ]
 
+        conversation_id = conversation_data[
+            "conversation_id"
+        ]
 
+        session_id = conversation_data[
+            "session_id"
+        ]
+
+        # -----------------------------------------------------
         # 2. Save user message
+        # -----------------------------------------------------
+
         await self.conversation_service.add_message(
             conversation_id,
             {
@@ -112,10 +130,22 @@ class ChatService:
             },
         )
 
-        # 3. Retrieve relevant documents
+        # Send metadata early.
+        # The browser now knows that the request is alive.
+        yield {
+            "type": "metadata",
+            "conversation_id": conversation_id,
+            "session_id": session_id,
+        }
+
+        # -----------------------------------------------------
+        # 3. Retrieval
+        # -----------------------------------------------------
+
         try:
-            retrieved_results = await self.retriever.retrieve(
-                cleaned_message
+            retrieved_results = await asyncio.to_thread(
+                self.retriever.retrieve,
+                cleaned_message,
             )
 
         except Exception:
@@ -127,28 +157,26 @@ class ChatService:
             }
             return
 
-
+        # -----------------------------------------------------
         # 4. Build RAG prompt
+        # -----------------------------------------------------
 
         prompt = build_rag_prompt(
             question=cleaned_message,
             results=retrieved_results,
         )
 
+        # -----------------------------------------------------
+        # 5. Generate answer
+        # -----------------------------------------------------
 
-        # 5. Send metadata
-        yield {
-            "type": "metadata",
-            "conversation_id": conversation_id,
-            "session_id": session_id,
-        }
-
-        # 6. Generate response
         full_response: list[str] = []
 
         try:
-            async for chunk in self.llm_provider.generate_stream(
-                prompt
+            async for chunk in (
+                self.llm_provider.generate_stream(
+                    prompt
+                )
             ):
                 if not chunk:
                     continue
@@ -169,8 +197,13 @@ class ChatService:
             }
             return
 
-        # 7. Validate response
-        reply_text = "".join(full_response).strip()
+        # -----------------------------------------------------
+        # 6. Validate answer
+        # -----------------------------------------------------
+
+        reply_text = "".join(
+            full_response
+        ).strip()
 
         if not reply_text:
             yield {
@@ -181,7 +214,10 @@ class ChatService:
             }
             return
 
-        # 8. Save assistant message
+        # -----------------------------------------------------
+        # 7. Save assistant message
+        # -----------------------------------------------------
+
         await self.conversation_service.add_message(
             conversation_id,
             {
@@ -190,7 +226,10 @@ class ChatService:
             },
         )
 
-        # 9. Finish
+        # -----------------------------------------------------
+        # 8. Complete
+        # -----------------------------------------------------
+
         yield {
             "type": "done",
             "conversation_id": conversation_id,

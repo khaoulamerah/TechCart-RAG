@@ -11,6 +11,7 @@ from backend.rag.vector_store.base import VectorStore
 
 
 class QdrantVectorStore(VectorStore):
+
     def __init__(
         self,
         host: str = "localhost",
@@ -30,6 +31,14 @@ class QdrantVectorStore(VectorStore):
 
         self.collection_name = collection_name
 
+    def collection_exists(self) -> bool:
+        collections = self.client.get_collections()
+
+        return any(
+            collection.name == self.collection_name
+            for collection in collections.collections
+        )
+
     def create_collection(
         self,
         vector_size: int,
@@ -40,14 +49,7 @@ class QdrantVectorStore(VectorStore):
                 "vector_size must be greater than 0."
             )
 
-        collections = self.client.get_collections()
-
-        collection_names = {
-            collection.name
-            for collection in collections.collections
-        }
-
-        if self.collection_name in collection_names:
+        if self.collection_exists():
             return
 
         self.client.create_collection(
@@ -56,6 +58,26 @@ class QdrantVectorStore(VectorStore):
                 size=vector_size,
                 distance=Distance.COSINE,
             ),
+        )
+
+    def delete_collection(self) -> None:
+        """Delete the collection if it exists."""
+
+        if self.collection_exists():
+            self.client.delete_collection(
+                collection_name=self.collection_name
+            )
+
+    def recreate_collection(
+        self,
+        vector_size: int,
+    ) -> None:
+        """Delete and recreate the collection."""
+
+        self.delete_collection()
+
+        self.create_collection(
+            vector_size=vector_size
         )
 
     def upsert(
@@ -101,7 +123,7 @@ class QdrantVectorStore(VectorStore):
         query_vector: list[float],
         limit: int = 5,
     ) -> list[dict[str, Any]]:
- 
+
         if not query_vector:
             raise ValueError(
                 "query_vector cannot be empty."
