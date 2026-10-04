@@ -227,17 +227,31 @@ const TechCartUI = (() => {
     );
 
     bubble.innerHTML = `
-      <div
-        class="thinking-dots"
-        aria-label="L'assistant réfléchit"
-      >
-        <span></span>
-        <span></span>
-        <span></span>
+      <div class="thinking-indicator">
+        <div class="thinking-dots" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <span class="thinking-status">
+          Analyse de votre demande…
+        </span>
       </div>
     `;
 
     return row;
+  }
+
+  function updateThinkingIndicator(row, message) {
+    if (!row || !message) {
+      return;
+    }
+
+    const status = row.querySelector(".thinking-status");
+
+    if (status) {
+      status.textContent = message;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -858,6 +872,7 @@ const TechCartUI = (() => {
     // Messages
     renderMessage,
     showThinkingIndicator,
+    updateThinkingIndicator,
     startStreamingMessage,
     appendToMessage,
     finishStreamingMessage,

@@ -18,7 +18,7 @@ EMBEDDING_MODEL = "bge-m3"
 
 COLLECTION_NAME = "techcart_bge_m3"
 
-RETRIEVAL_K = 20
+RETRIEVAL_K = 10
 TOP_K = 5
 
 

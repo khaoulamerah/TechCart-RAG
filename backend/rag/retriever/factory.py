@@ -1,18 +1,10 @@
 from functools import lru_cache
 
 from backend.config.settings import settings
-from backend.rag.embeddings.embedder import (
-    OllamaEmbeddingStrategy,
-)
-from backend.rag.reranker.bge import (
-    BGEReranker,
-)
-from backend.rag.retriever.retriever import (
-    Retriever,
-)
-from backend.rag.vector_store.qdrant import (
-    QdrantVectorStore,
-)
+from backend.rag.embeddings.embedder import OllamaEmbeddingStrategy
+from backend.rag.reranker.bge import BGEReranker
+from backend.rag.retriever.retriever import Retriever
+from backend.rag.vector_store.qdrant import QdrantVectorStore
 
 
 @lru_cache(maxsize=1)
@@ -30,9 +22,13 @@ def get_retriever() -> Retriever:
         collection_name=settings.QDRANT_COLLECTION,
     )
 
-    reranker = BGEReranker(
-        model_name=settings.RERANKER_MODEL,
-        use_fp16=settings.RERANKER_USE_FP16,
+    reranker = (
+        BGEReranker(
+            model_name=settings.RERANKER_MODEL,
+            use_fp16=settings.RERANKER_USE_FP16,
+        )
+        if settings.RERANKER_ENABLED
+        else None
     )
 
     return Retriever(

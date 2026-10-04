@@ -356,6 +356,17 @@ const TechCartChat = (() => {
               state.sessionId =
                 metadata.sessionId;
             }
+          },
+
+          /*
+           * Progress events keep the user informed while retrieval,
+           * reranking or the first LLM token is taking time.
+           */
+          (status) => {
+            TechCartUI.updateThinkingIndicator(
+              thinkingRow,
+              status
+            );
           }
         );
 

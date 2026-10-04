@@ -6,45 +6,73 @@ document.addEventListener("DOMContentLoaded", () => {
   const developerOpen = document.getElementById("developer-open");
   const developerBack = document.getElementById("developer-back");
 
-  function showChatPage() {
+  function showChatPage(updateUrl = true) {
     chatPage?.classList.add("active");
     developerPage?.classList.remove("active");
+
+    if (
+      updateUrl &&
+      (
+        window.location.pathname === "/developer" ||
+        window.location.hash === "#developer"
+      )
+    ) {
+      history.replaceState(null, "", "/");
+    }
   }
 
-  function showDeveloperPage() {
+  function showDeveloperPage(updateUrl = true) {
     chatPage?.classList.remove("active");
     developerPage?.classList.add("active");
+
+    if (updateUrl && window.location.pathname !== "/developer") {
+      history.replaceState(null, "", "/developer");
+    }
+
     DeveloperApp.loadConversations().catch(console.error);
   }
 
-  dom.form.addEventListener("submit", (event) => {
+  function routeFromUrl() {
+    if (window.location.pathname === "/developer") {
+      showDeveloperPage(false);
+    } else {
+      showChatPage(false);
+    }
+  }
+
+  dom.form?.addEventListener("submit", (event) => {
     event.preventDefault();
     TechCartChat.sendUserMessage(dom.input.value);
   });
 
-  dom.input.addEventListener("keydown", (event) => {
+  dom.input?.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       dom.form.requestSubmit();
     }
   });
 
-  dom.input.addEventListener("input", () => {
+  dom.input?.addEventListener("input", () => {
     TechCartUI.autoGrowInput();
   });
 
-  dom.newChatBtn.addEventListener("click", () => {
+  dom.newChatBtn?.addEventListener("click", () => {
     showChatPage();
     TechCartChat.startNewConversation();
   });
 
-  dom.sidebarToggle.addEventListener("click", () => {
+  dom.sidebarToggle?.addEventListener("click", () => {
     TechCartUI.toggleSidebar();
   });
 
-  dom.themeToggle.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme");
-    const next = current === "light" ? "dark" : "light";
+  dom.themeToggle?.addEventListener("click", () => {
+    const current =
+      document.documentElement.getAttribute("data-theme");
+
+    const next =
+      current === "light"
+        ? "dark"
+        : "light";
 
     TechCartUI.applyTheme(next);
     localStorage.setItem("techcart_theme", next);
@@ -58,14 +86,20 @@ document.addEventListener("DOMContentLoaded", () => {
     showChatPage();
   });
 
+  window.addEventListener("popstate", routeFromUrl);
+
   const savedTheme =
     localStorage.getItem("techcart_theme") || "dark";
 
   TechCartUI.applyTheme(savedTheme);
 
-  // Cache DOM references and bind the Developer refresh button.
   DeveloperApp.initialize();
-
   TechCartChat.init();
-  showChatPage();
+
+  /*
+   * Root URL "/" always opens the user chat.
+   * Developer mode is available explicitly through
+   * the Developer button or /developer.
+   */
+  routeFromUrl();
 });

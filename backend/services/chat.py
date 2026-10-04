@@ -21,6 +21,8 @@ def utcnow() -> datetime:
 
 
 class ChatService:
+    """Run the RAG pipeline and expose progress through SSE events."""
+
     def __init__(
         self,
         conversation_service: ConversationService,
@@ -62,8 +64,10 @@ class ChatService:
                     raise
 
         resolved_session_id = session_id or str(uuid4())
-        conversation = await self.conversation_service.get_or_create_by_session(
-            resolved_session_id
+        conversation = (
+            await self.conversation_service.get_or_create_by_session(
+                resolved_session_id
+            )
         )
 
         return {
@@ -81,6 +85,7 @@ class ChatService:
         for result in results:
             payload = result.get("payload") or {}
             text = str(payload.get("text", "")).strip()
+
             if not text:
                 continue
 
@@ -102,9 +107,48 @@ class ChatService:
         try:
             await self.rag_trace_repository.create(trace)
         except Exception:
-            # Logging can be added here later; observability failures should
-            # never make an otherwise valid RAG response fail.
             return
+
+    async def _stream_llm_with_progress(
+        self,
+        prompt: str,
+    ) -> AsyncIterator[str | dict[str, str]]:
+        """
+        Stream LLM tokens while emitting a keep-alive/status event every
+        few seconds if the first token takes a while to arrive.
+        """
+        iterator = self.llm_provider.generate_stream(prompt).__aiter__()
+
+        while True:
+            next_token = asyncio.create_task(iterator.__anext__())
+
+            try:
+                while not next_token.done():
+                    try:
+                        chunk = await asyncio.wait_for(
+                            asyncio.shield(next_token),
+                            timeout=5.0,
+                        )
+                    except asyncio.TimeoutError:
+                        yield {
+                            "type": "status",
+                            "message": "Le modèle génère la réponse…",
+                        }
+                        continue
+                    else:
+                        yield chunk
+                        break
+                else:
+                    # The task was already completed before entering the loop.
+                    yield await next_token
+
+            except StopAsyncIteration:
+                return
+
+            except Exception:
+                if not next_token.done():
+                    next_token.cancel()
+                raise
 
     async def stream_message(
         self,
@@ -134,6 +178,8 @@ class ChatService:
         messages = user_conversation.get("messages", [])
         message_id = messages[-1].get("message_id") if messages else None
 
+        # Send metadata immediately. The browser can now display the request
+        # as accepted even when retrieval/reranking is still running.
         yield {
             "type": "metadata",
             "conversation_id": conversation_id,
@@ -157,20 +203,47 @@ class ChatService:
         }
 
         try:
-            # -------------------------------------------------
-            # Retrieval + reranking
-            # -------------------------------------------------
-            retrieved_results, retrieval_trace = await asyncio.to_thread(
-                self.retriever.retrieve_with_trace,
-                cleaned_message,
+            yield {
+                "type": "status",
+                "message": "Recherche dans la base de connaissances…",
+            }
+
+            retrieval_task = asyncio.create_task(
+                asyncio.to_thread(
+                    self.retriever.retrieve_with_trace,
+                    cleaned_message,
+                )
             )
+
+            status_messages = [
+                "Recherche des documents pertinents…",
+                "Analyse des résultats…",
+                "Classement des documents…",
+            ]
+            status_index = 0
+
+            while not retrieval_task.done():
+                yield {
+                    "type": "status",
+                    "message": status_messages[
+                        status_index % len(status_messages)
+                    ],
+                }
+                status_index += 1
+
+                try:
+                    await asyncio.wait_for(
+                        asyncio.shield(retrieval_task),
+                        timeout=2.0,
+                    )
+                except asyncio.TimeoutError:
+                    continue
+
+            retrieved_results, retrieval_trace = await retrieval_task
 
             trace["retrieval"] = retrieval_trace.get("retrieval")
             trace["reranking"] = retrieval_trace.get("reranking")
 
-            # -------------------------------------------------
-            # Context + prompt
-            # -------------------------------------------------
             trace["context"] = self._context_from_results(
                 retrieved_results
             )
@@ -181,14 +254,21 @@ class ChatService:
             )
             trace["prompt"] = prompt
 
-            # -------------------------------------------------
-            # LLM streaming
-            # -------------------------------------------------
+            yield {
+                "type": "status",
+                "message": "Génération de la réponse…",
+            }
+
             full_response: list[str] = []
             llm_started = perf_counter()
             first_token_at: float | None = None
 
-            async for chunk in self.llm_provider.generate_stream(prompt):
+            async for item in self._stream_llm_with_progress(prompt):
+                if isinstance(item, dict):
+                    yield item
+                    continue
+
+                chunk = item
                 if not chunk:
                     continue
 
@@ -206,11 +286,7 @@ class ChatService:
 
             trace["llm"] = {
                 "provider": type(self.llm_provider).__name__,
-                "model": getattr(
-                    self.llm_provider,
-                    "model",
-                    None,
-                ),
+                "model": getattr(self.llm_provider, "model", None),
                 "time_to_first_token_ms": (
                     (first_token_at - llm_started) * 1000
                     if first_token_at is not None
@@ -257,13 +333,18 @@ class ChatService:
             await self._save_trace(trace)
 
             if isinstance(exc, LLMProviderError):
-                message_text = "The AI model is currently unavailable."
+                message_text = "Le modèle IA est actuellement indisponible."
             elif trace.get("retrieval") is None:
-                message_text = "The knowledge base is currently unavailable."
+                message_text = (
+                    "La base de connaissances est actuellement indisponible."
+                )
             else:
-                message_text = "An error occurred while generating the response."
+                message_text = (
+                    "Une erreur est survenue pendant la génération de la réponse."
+                )
 
             yield {
                 "type": "error",
                 "message": message_text,
+                "detail": str(exc),
             }

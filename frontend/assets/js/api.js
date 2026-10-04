@@ -34,7 +34,8 @@ const TechCartAPI = (() => {
     sessionId = null,
     conversationId = null,
     onToken = () => {},
-    onDone = () => {}
+    onDone = () => {},
+    onStatus = () => {}
   ) {
     const controller = new AbortController();
 
@@ -184,6 +185,11 @@ const TechCartAPI = (() => {
             continue;
           }
 
+          if (type === "status") {
+            onStatus(data?.message || "");
+            continue;
+          }
+
           if (type === "metadata") {
             resultConversationId =
               data?.conversation_id ??
@@ -252,6 +258,10 @@ const TechCartAPI = (() => {
               fullReply += content;
               onToken(content);
             }
+          }
+
+          if (type === "status") {
+            onStatus(data?.message || "");
           }
 
           if (type === "metadata") {
@@ -506,7 +516,7 @@ async function getDeveloperConversations(
   limit = 100
 ) {
   const response = await fetch(
-    `${API_BASE_URL}/developer/conversations?limit=${limit}`,
+    `${CONFIG.API_BASE_URL}/developer/conversations?limit=${limit}`,
     {
       method: "GET",
       headers: {
@@ -529,7 +539,7 @@ async function getDeveloperConversation(
   conversationId
 ) {
   const response = await fetch(
-    `${API_BASE_URL}/developer/conversations/${encodeURIComponent(
+    `${CONFIG.API_BASE_URL}/developer/conversations/${encodeURIComponent(
       conversationId
     )}`,
     {
@@ -554,7 +564,7 @@ async function getConversationTraces(
   conversationId
 ) {
   const response = await fetch(
-    `${API_BASE_URL}/developer/conversations/${encodeURIComponent(
+    `${CONFIG.API_BASE_URL}/developer/conversations/${encodeURIComponent(
       conversationId
     )}/traces`,
     {
@@ -577,7 +587,7 @@ async function getConversationTraces(
 
 async function getRAGTrace(traceId) {
   const response = await fetch(
-    `${API_BASE_URL}/developer/traces/${encodeURIComponent(
+    `${CONFIG.API_BASE_URL}/developer/traces/${encodeURIComponent(
       traceId
     )}`,
     {
