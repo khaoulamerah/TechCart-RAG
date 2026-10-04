@@ -21,6 +21,8 @@ from backend.rag.retriever.factory import (
     get_retriever,
 )
 
+from backend.api.routes import developer
+
 logger = logging.getLogger("techcart.api")
 
 
@@ -171,4 +173,8 @@ app.include_router(
 
 app.include_router(
     conversation.router
+)
+
+app.include_router(
+    developer.router
 )

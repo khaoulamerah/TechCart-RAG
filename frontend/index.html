@@ -14,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap"
     rel="stylesheet"
   />
-
+  <link rel="stylesheet" href="assets/css/developer.css" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="stylesheet" href="assets/css/chat.css" />
   <link rel="stylesheet" href="assets/css/responsive.css" />
@@ -56,11 +56,15 @@
           </svg>
           Thème
         </button>
+        <button class="theme-toggle" id="developer-open" type="button" title="Ouvrir l'interface développeur">
+          Developer
+        </button>
       </div>
     </aside>
 
     <!-- ═══════════════════ ZONE PRINCIPALE ═══════════════════ -->
     <main class="main">
+
 
       <!-- Barre visible uniquement en mobile pour ouvrir la sidebar -->
       <div class="topbar">
@@ -72,7 +76,7 @@
         <span class="brand-name" style="font-size:14px;">TechCart</span>
       </div>
 
-      <section class="chat-container">
+      <section class="chat-container" id="chat-page">
         <div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div>
 
         <div class="input-bar-wrap">
@@ -93,8 +97,90 @@
           <p class="input-hint">TechCart peut se tromper. Vérifiez les prix et le stock avant tout achat.</p>
         </div>
       </section>
+
+
+  <!-- =========================================================
+     Developer / Observability Interface
+     ========================================================= -->
+
+<section
+  id="developer-page"
+  class="developer-page"
+>
+  <header class="developer-header">
+    <div>
+      <h1>Developer Observability</h1>
+
+      <p>
+        Inspect conversations and RAG execution.
+      </p>
+    </div>
+
+    <div class="developer-header-actions">
+      <button id="developer-back" type="button">Back to chat</button>
+      <button id="developer-refresh" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <div
+    id="developer-error"
+    class="developer-error"
+  ></div>
+
+  <div class="developer-layout">
+
+    <!-- Conversations -->
+    <aside class="developer-sidebar">
+      <h2>Conversations</h2>
+
+      <div
+        id="developer-conversations"
+        class="developer-conversations"
+      >
+        <p class="developer-loading">
+          Loading...
+        </p>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="developer-main">
+
+      <!-- Conversation -->
+      <section
+        class="developer-panel"
+        id="developer-conversation-detail"
+      >
+        <p class="developer-empty">
+          Select a conversation.
+        </p>
+      </section>
+
+      <!-- RAG requests -->
+      <section
+        class="developer-panel"
+        id="developer-traces"
+      >
+      </section>
+
+      <!-- Selected trace -->
+      <section
+        class="developer-panel"
+        id="developer-trace-detail"
+      >
+        <p class="developer-empty">
+          Select a RAG request.
+        </p>
+      </section>
+
+    </div>
+  </div>
+</section>
+
     </main>
   </div>
+
+
 
   <!-- Ordre de chargement important : chaque script dépend du précédent -->
   <script src="assets/js/config.js"></script>
@@ -102,5 +188,11 @@
   <script src="assets/js/ui.js"></script>
   <script src="assets/js/chat.js"></script>
   <script src="assets/js/app.js"></script>
+  <script src="assets/js/developer/conversations.js"></script>
+  <script src="assets/js/developer/rag-trace.js"></script>
+  <script src="assets/js/developer/retrieval.js"></script>
+  <script src="assets/js/developer/reranking.js"></script>
+  <script src="assets/js/developer/llm.js"></script>
+  <script src="/assets/js/developer.js"></script>
 </body>
 </html>

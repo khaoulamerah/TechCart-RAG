@@ -494,3 +494,105 @@ class APIError extends Error {
     this.detail = detail;
   }
 }
+
+
+
+
+// ============================================================
+// Developer / Observability API
+// ============================================================
+
+async function getDeveloperConversations(
+  limit = 100
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/developer/conversations?limit=${limit}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load conversations (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+
+async function getDeveloperConversation(
+  conversationId
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/developer/conversations/${encodeURIComponent(
+      conversationId
+    )}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load conversation (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+
+async function getConversationTraces(
+  conversationId
+) {
+  const response = await fetch(
+    `${API_BASE_URL}/developer/conversations/${encodeURIComponent(
+      conversationId
+    )}/traces`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load RAG traces (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+
+async function getRAGTrace(traceId) {
+  const response = await fetch(
+    `${API_BASE_URL}/developer/traces/${encodeURIComponent(
+      traceId
+    )}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load RAG trace (${response.status})`
+    );
+  }
+
+  return response.json();
+}

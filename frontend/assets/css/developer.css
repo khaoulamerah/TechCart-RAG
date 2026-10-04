@@ -1,0 +1,79 @@
+
+/* Page switching */
+.chat-container:not(.active) {
+  display: none;
+}
+
+.developer-page {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.developer-page.active {
+  display: block;
+}
+
+.developer-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.developer-header-actions button,
+#developer-open {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.developer-header-actions button:hover,
+#developer-open:hover {
+  background: var(--bg-elevated-hover);
+}
+
+.developer-sidebar,
+.developer-panel {
+  border-color: var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.developer-conversation,
+.developer-trace-item,
+.developer-tab {
+  border-color: var(--border);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.developer-conversation:hover,
+.developer-trace-item:hover,
+.developer-tab:hover,
+.developer-tab.active {
+  background: var(--bg-elevated-hover);
+}
+
+.developer-message-user,
+.developer-message-assistant,
+.developer-document,
+.developer-context,
+.developer-metric,
+.developer-info-grid > div,
+.developer-score,
+.developer-document pre,
+.developer-context pre,
+.developer-llm-response {
+  border-color: var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.developer-badge {
+  background: var(--bg-elevated-hover);
+  color: var(--text-primary);
+}

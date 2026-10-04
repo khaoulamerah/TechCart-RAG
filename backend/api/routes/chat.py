@@ -7,6 +7,8 @@ from fastapi.responses import StreamingResponse
 from backend.api.routes.conversation import (
     get_conversation_service,
 )
+from backend.database.mongodb import get_database
+from backend.repositories.rag_trace import RAGTraceRepository
 from backend.api.schemas.chat import (
     ChatMessageRequest,
 )
@@ -32,6 +34,7 @@ def get_chat_service(
     conversation_service: ConversationService = Depends(
         get_conversation_service
     ),
+    database = Depends(get_database),
     llm_provider: LLMProvider = Depends(
         get_llm_provider
     ),
@@ -43,6 +46,7 @@ def get_chat_service(
         conversation_service=conversation_service,
         llm_provider=llm_provider,
         retriever=retriever,
+        rag_trace_repository=RAGTraceRepository(database),
     )
 
 

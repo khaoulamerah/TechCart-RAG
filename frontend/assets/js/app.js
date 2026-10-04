@@ -1,124 +1,71 @@
 document.addEventListener("DOMContentLoaded", () => {
   const dom = TechCartUI.dom;
 
+  const chatPage = document.getElementById("chat-page");
+  const developerPage = document.getElementById("developer-page");
+  const developerOpen = document.getElementById("developer-open");
+  const developerBack = document.getElementById("developer-back");
 
-  /*
-   * ─────────────────────────────────────────────
-   * SEND MESSAGE
-   * ─────────────────────────────────────────────
-   */
+  function showChatPage() {
+    chatPage?.classList.add("active");
+    developerPage?.classList.remove("active");
+  }
 
-  dom.form.addEventListener(
-    "submit",
-    (event) => {
+  function showDeveloperPage() {
+    chatPage?.classList.remove("active");
+    developerPage?.classList.add("active");
+    DeveloperApp.loadConversations().catch(console.error);
+  }
+
+  dom.form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    TechCartChat.sendUserMessage(dom.input.value);
+  });
+
+  dom.input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-
-      TechCartChat.sendUserMessage(
-        dom.input.value
-      );
+      dom.form.requestSubmit();
     }
-  );
+  });
 
+  dom.input.addEventListener("input", () => {
+    TechCartUI.autoGrowInput();
+  });
 
-  /*
-   * Enter = send
-   * Shift + Enter = new line
-   */
+  dom.newChatBtn.addEventListener("click", () => {
+    showChatPage();
+    TechCartChat.startNewConversation();
+  });
 
-  dom.input.addEventListener(
-    "keydown",
-    (event) => {
-      if (
-        event.key === "Enter" &&
-        !event.shiftKey
-      ) {
-        event.preventDefault();
+  dom.sidebarToggle.addEventListener("click", () => {
+    TechCartUI.toggleSidebar();
+  });
 
-        dom.form.requestSubmit();
-      }
-    }
-  );
+  dom.themeToggle.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme");
+    const next = current === "light" ? "dark" : "light";
 
+    TechCartUI.applyTheme(next);
+    localStorage.setItem("techcart_theme", next);
+  });
 
-  /*
-   * ─────────────────────────────────────────────
-   * AUTO-GROW TEXTAREA
-   * ─────────────────────────────────────────────
-   */
+  developerOpen?.addEventListener("click", () => {
+    showDeveloperPage();
+  });
 
-  dom.input.addEventListener(
-    "input",
-    () => {
-      TechCartUI.autoGrowInput();
-    }
-  );
-
-
-  /*
-   * ─────────────────────────────────────────────
-   * NEW CONVERSATION
-   * ─────────────────────────────────────────────
-   */
-
-  dom.newChatBtn.addEventListener(
-    "click",
-    () => {
-      TechCartChat.startNewConversation();
-    }
-  );
-
-
-  /*
-   * ─────────────────────────────────────────────
-   * MOBILE SIDEBAR
-   * ─────────────────────────────────────────────
-   */
-
-  dom.sidebarToggle.addEventListener(
-    "click",
-    () => {
-      TechCartUI.toggleSidebar();
-    }
-  );
-
-
-  /*
-   * ─────────────────────────────────────────────
-   * THEME
-   * ─────────────────────────────────────────────
-   */
-
-  dom.themeToggle.addEventListener(
-    "click",
-    () => {
-      const current =
-        document.documentElement
-          .getAttribute("data-theme");
-
-      const next =
-        current === "light"
-          ? "dark"
-          : "light";
-
-      TechCartUI.applyTheme(next);
-
-      localStorage.setItem(
-        "techcart_theme",
-        next
-      );
-    }
-  );
-
+  developerBack?.addEventListener("click", () => {
+    showChatPage();
+  });
 
   const savedTheme =
-    localStorage.getItem(
-      "techcart_theme"
-    ) || "dark";
+    localStorage.getItem("techcart_theme") || "dark";
 
-  TechCartUI.applyTheme(
-    savedTheme
-  );
+  TechCartUI.applyTheme(savedTheme);
 
+  // Cache DOM references and bind the Developer refresh button.
+  DeveloperApp.initialize();
 
   TechCartChat.init();
+  showChatPage();
 });
