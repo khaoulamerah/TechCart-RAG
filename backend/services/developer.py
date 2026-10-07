@@ -6,13 +6,22 @@ from typing import Any
 class DeveloperService:
     """Business logic for the developer / observability interface."""
 
-    def __init__(self, conversation_repository, rag_trace_repository):
+    def __init__(
+        self,
+        conversation_repository,
+        rag_trace_repository,
+    ):
         self.conversation_repository = conversation_repository
         self.rag_trace_repository = rag_trace_repository
 
     @staticmethod
-    def _conversation_id(document: dict[str, Any]) -> str:
-        value = document.get("_id", document.get("id", ""))
+    def _conversation_id(
+        document: dict[str, Any],
+    ) -> str:
+        value = document.get(
+            "_id",
+            document.get("id", ""),
+        )
         return str(value)
 
     @classmethod
@@ -23,33 +32,62 @@ class DeveloperService:
         return {
             "id": cls._conversation_id(document),
             "session_id": document.get("session_id"),
-            "title": document.get("title", "Nouvelle conversation"),
-            "messages": document.get("messages", []),
-            "created_at": document.get("created_at"),
-            "updated_at": document.get("updated_at"),
+            "title": document.get(
+                "title",
+                "Nouvelle conversation",
+            ),
+            "messages": document.get(
+                "messages",
+                [],
+            ),
+            "created_at": document.get(
+                "created_at"
+            ),
+            "updated_at": document.get(
+                "updated_at"
+            ),
         }
 
     async def list_conversations(
         self,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        conversations = await self.conversation_repository.get_recent(
-            limit=limit
+        """
+        Return recent conversations for the
+        developer observability interface.
+        """
+
+        conversations, _total = (
+            await self.conversation_repository.list_conversations(
+                skip=0,
+                limit=limit,
+            )
         )
 
         return [
             {
-                "id": self._conversation_id(conversation),
-                "session_id": conversation.get("session_id"),
+                "id": self._conversation_id(
+                    conversation
+                ),
+                "session_id": conversation.get(
+                    "session_id"
+                ),
                 "title": conversation.get(
                     "title",
                     "Nouvelle conversation",
                 ),
                 "message_count": len(
-                    conversation.get("messages", [])
+                    conversation.get(
+                        "messages",
+                        [],
+                    )
                 ),
-                "created_at": conversation.get("created_at"),
-                "updated_at": conversation.get("updated_at"),
+                "created_at": conversation.get(
+                    "created_at"
+                ),
+                "updated_at": conversation.get(
+                    "updated_at"
+                ),
             }
             for conversation in conversations
         ]
@@ -58,31 +96,41 @@ class DeveloperService:
         self,
         conversation_id: str,
     ) -> dict[str, Any] | None:
-        conversation = await self.conversation_repository.get_by_id(
-            conversation_id
+        conversation = (
+            await self.conversation_repository.get_by_id(
+                conversation_id
+            )
         )
 
         if conversation is None:
             return None
 
-        return self._serialize_conversation(conversation)
+        return self._serialize_conversation(
+            conversation
+        )
 
     async def get_trace(
         self,
         trace_id: str,
     ) -> dict[str, Any] | None:
-        return await self.rag_trace_repository.get_by_id(trace_id)
+        return await self.rag_trace_repository.get_by_id(
+            trace_id
+        )
 
     async def get_conversation_traces(
         self,
         conversation_id: str,
     ) -> list[dict[str, Any]]:
-        return await self.rag_trace_repository.get_by_conversation(
-            conversation_id
+        return (
+            await self.rag_trace_repository.get_by_conversation(
+                conversation_id
+            )
         )
 
     async def get_recent_traces(
         self,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        return await self.rag_trace_repository.get_recent(limit)
+        return await self.rag_trace_repository.get_recent(
+            limit
+        )
