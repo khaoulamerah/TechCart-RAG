@@ -148,6 +148,8 @@ services:
     restart: unless-stopped
     networks:
       - techcart_network
+    volumes:
+      - ./frontend:/usr/share/nginx/html/ 
     logging:
       driver: "json-file"
       options:

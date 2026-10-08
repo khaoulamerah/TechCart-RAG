@@ -3,7 +3,7 @@ FROM nginx:1.27-alpine
 LABEL maintainer="TechCart"
 LABEL description="TechCart Frontend"
 
-# COPY frontend/ /usr/share/nginx/html/ 
+COPY frontend/ /usr/share/nginx/html/ 
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
