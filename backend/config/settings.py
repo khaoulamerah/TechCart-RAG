@@ -25,18 +25,21 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "mistral:latest"
     EMBEDDING_MODEL: str = "bge-m3"
 
-    # Reranker
+    # Reranker (served locally by Ollama; no Hugging Face download required)
     RERANKER_ENABLED: bool = True
-    RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
-    RERANKER_USE_FP16: bool = False
+    RERANKER_PROVIDER: str = "ollama"
+    RERANKER_MODEL: str = "dengcao/Qwen3-Reranker-0.6B:Q8_0"
+    RERANKER_TIMEOUT_SECONDS: float = 30.0
+    RERANKER_TOP_LOGPROBS: int = 20
+    RERANKER_INSTRUCTION: str = (
+        "Given a web search query, retrieve relevant passages that answer the query"
+    )
+    RERANKER_MAX_DOCUMENT_CHARS: int = 12000
 
     # Retrieval
-    # Keep this reasonably small because every candidate is passed to the
-    # CPU reranker. Increase it only after measuring latency.
     RETRIEVAL_K: int = 10
-
-    # Final number of chunks sent to the RAG prompt.
     TOP_K_RESULTS: int = 5
+    RETRIEVAL_TIMEOUT_SECONDS: int = 180
 
     SIMILARITY_THRESHOLD: float = 0.0
 

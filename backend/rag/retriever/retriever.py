@@ -6,7 +6,7 @@ from typing import Any
 from backend.rag.embeddings.embedder import (
     OllamaEmbeddingStrategy,
 )
-from backend.rag.reranker.bge import BGEReranker
+from backend.rag.reranker.base import Reranker
 from backend.rag.vector_store.qdrant import QdrantVectorStore
 
 
@@ -30,7 +30,7 @@ class Retriever:
         self,
         embedder: OllamaEmbeddingStrategy,
         vector_store: QdrantVectorStore,
-        reranker: BGEReranker | None = None,
+        reranker: Reranker | None = None,
         retrieval_k: int = 20,
         top_k: int = 5,
     ) -> None:
@@ -120,7 +120,11 @@ class Retriever:
         reranking_latency_ms = (perf_counter() - reranking_started) * 1000
 
         reranking_trace = {
-            "model": self.reranker.model_name,
+            "model": getattr(
+                self.reranker,
+                "model_name",
+                type(self.reranker).__name__,
+            ),
             "input_count": len(candidates),
             "output_count": len(final_documents),
             "latency_ms": reranking_latency_ms,

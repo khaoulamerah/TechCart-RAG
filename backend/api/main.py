@@ -48,10 +48,13 @@ async def lifespan(app: FastAPI):
             "MongoDB is unavailable. Backend will continue without MongoDB."
         )
 
-    warmup_tasks = [
-        asyncio.create_task(warmup_llm()),
-        asyncio.create_task(warmup_reranker()),
-    ]
+    async def warmup_models_in_sequence() -> None:
+        # Avoid loading the 4.4 GB chat model and reranker into Ollama at the
+        # same time on machines with limited RAM/VRAM.
+        await warmup_llm()
+        await warmup_reranker()
+
+    warmup_task = asyncio.create_task(warmup_models_in_sequence())
 
     logger.info("TechCart backend started.")
 
@@ -60,11 +63,10 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info("Shutting down TechCart backend...")
 
-        for task in warmup_tasks:
-            if not task.done():
-                task.cancel()
+        if not warmup_task.done():
+            warmup_task.cancel()
 
-        await asyncio.gather(*warmup_tasks, return_exceptions=True)
+        await asyncio.gather(warmup_task, return_exceptions=True)
         await close_mongo_connection()
         logger.info("TechCart backend stopped.")
 

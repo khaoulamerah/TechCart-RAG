@@ -1,29 +1,60 @@
-#!/bin/bash 
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-echo "\033[91m ollama init script started\033[m"
+printf '\033[36m%s\033[0m\n' "TechCart Ollama initialization started"
 
-ollama serve & 
+: "${LLM_MODEL:?LLM_MODEL must be configured}"
+: "${EMBEDDING_MODEL:?EMBEDDING_MODEL must be configured}"
+RERANKER_ENABLED="${RERANKER_ENABLED:-true}"
+RERANKER_MODEL="${RERANKER_MODEL:-dengcao/Qwen3-Reranker-0.6B:Q8_0}"
+
+# Do not let a marker from a previous container run report stale readiness.
+rm -f /tmp/techcart-models-ready
+
+ollama serve &
 OLLAMA_PID=$!
 
-echo "Waiting for Ollama server..." 
+cleanup() {
+    kill "${OLLAMA_PID}" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+printf '%s\n' "Waiting for Ollama API..."
 until ollama list >/dev/null 2>&1; do
-    sleep 1 
+    if ! kill -0 "${OLLAMA_PID}" 2>/dev/null; then
+        echo "Ollama server exited before becoming ready." >&2
+        exit 1
+    fi
+    sleep 1
 done
 
-# check if the model is already installed
-if ollama list | grep -q "$LLM_MODEL"; then
-    echo "Model $LLM_MODEL already exists"
+ensure_model() {
+    local model="$1"
+    local installed_models
+
+    installed_models="$(ollama list | awk 'NR > 1 { print $1 }')"
+    if grep -Fxq -- "${model}" <<<"${installed_models}"; then
+        printf 'Model already installed: %s\n' "${model}"
+    elif [[ "${model}" != *:* ]] && grep -Fxq -- "${model}:latest" <<<"${installed_models}"; then
+        # Ollama displays untagged model names with the explicit :latest tag.
+        printf 'Model already installed: %s:latest\n' "${model}"
+    else
+        printf 'Pulling model: %s\n' "${model}"
+        ollama pull "${model}"
+    fi
+}
+
+ensure_model "${LLM_MODEL}"
+ensure_model "${EMBEDDING_MODEL}"
+
+if [[ "${RERANKER_ENABLED,,}" == "true" ]]; then
+    ensure_model "${RERANKER_MODEL}"
 else
-    echo "Installing $LLM_MODEL..."
-    ollama pull "$LLM_MODEL"
+    echo "Ollama reranker is disabled; skipping reranker model pull."
 fi
 
-#embeddings model
-if ollama list | grep -q "$EMBEDDING_MODEL"; then
-    echo "Embeddings model $EMBEDDING_MODEL already exists"
-else
-    echo "Installing embeddings model $EMBEDDING_MODEL..."
-    ollama pull "$EMBEDDING_MODEL"
-fi
+# The Compose healthcheck stays unhealthy until every configured model exists.
+touch /tmp/techcart-models-ready
+printf '%s\n' "All configured Ollama models are ready."
 
-wait # this is to keep the cotnaier running 
+wait "${OLLAMA_PID}"

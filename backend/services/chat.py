@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 
+from backend.config.settings import settings
 from backend.rag.generator.base import LLMProvider, LLMProviderError
 from backend.rag.prompt import build_rag_prompt
 from backend.rag.retriever.retriever import Retriever
@@ -21,7 +22,6 @@ def utcnow() -> datetime:
 
 
 class ChatService:
-    """Run the RAG pipeline and expose progress through SSE events."""
 
     def __init__(
         self,
@@ -222,7 +222,20 @@ class ChatService:
             ]
             status_index = 0
 
+            loop = asyncio.get_running_loop()
+            retrieval_deadline = (
+                loop.time() + settings.RETRIEVAL_TIMEOUT_SECONDS
+            )
+
             while not retrieval_task.done():
+                remaining_seconds = retrieval_deadline - loop.time()
+                if remaining_seconds <= 0:
+                    retrieval_task.cancel()
+                    raise TimeoutError(
+                        "Document retrieval exceeded the configured "
+                        f"{settings.RETRIEVAL_TIMEOUT_SECONDS}-second timeout."
+                    )
+
                 yield {
                     "type": "status",
                     "message": status_messages[
@@ -234,9 +247,15 @@ class ChatService:
                 try:
                     await asyncio.wait_for(
                         asyncio.shield(retrieval_task),
-                        timeout=2.0,
+                        timeout=min(2.0, remaining_seconds),
                     )
                 except asyncio.TimeoutError:
+                    if loop.time() >= retrieval_deadline:
+                        retrieval_task.cancel()
+                        raise TimeoutError(
+                            "Document retrieval exceeded the configured "
+                            f"{settings.RETRIEVAL_TIMEOUT_SECONDS}-second timeout."
+                        )
                     continue
 
             retrieved_results, retrieval_trace = await retrieval_task
@@ -332,7 +351,12 @@ class ChatService:
             ) * 1000
             await self._save_trace(trace)
 
-            if isinstance(exc, LLMProviderError):
+            if isinstance(exc, TimeoutError):
+                message_text = (
+                    "La recherche des documents prend trop de temps. "
+                    "Réessaie dans un instant."
+                )
+            elif isinstance(exc, LLMProviderError):
                 message_text = "Le modèle IA est actuellement indisponible."
             elif trace.get("retrieval") is None:
                 message_text = (
