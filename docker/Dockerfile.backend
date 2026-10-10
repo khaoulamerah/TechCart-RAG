@@ -12,19 +12,14 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# ---------------------------------------------------------
 # System dependencies
-# ---------------------------------------------------------
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ---------------------------------------------------------
-# Python dependencies
-# ---------------------------------------------------------
 
+# Python dependencies
 COPY requirements.txt .
 
 RUN python -m pip install \
@@ -40,22 +35,18 @@ RUN python -m pip install \
         --retries 10 \
         -r requirements.txt
 
-# ---------------------------------------------------------
-# Application
-# ---------------------------------------------------------
 
+# Application
 COPY backend/ ./backend/
 COPY data/ ./data/
 COPY scripts/ ./scripts/
 
-# ---------------------------------------------------------
+
 # Port
-# ---------------------------------------------------------
 EXPOSE 8000
 
-# ---------------------------------------------------------
+
 # Healthcheck
-# ---------------------------------------------------------
 HEALTHCHECK \
     --interval=15s \
     --timeout=5s \
@@ -63,8 +54,6 @@ HEALTHCHECK \
     --retries=5 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# ---------------------------------------------------------
-# Start FastAPI
-# ---------------------------------------------------------
 
+# Start FastAPI
 CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
