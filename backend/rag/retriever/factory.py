@@ -2,14 +2,14 @@ from functools import lru_cache
 
 from backend.config.settings import settings
 from backend.rag.embeddings.embedder import OllamaEmbeddingStrategy
-from backend.rag.reranker.ollama_qwen import OllamaQwenReranker
+from backend.rag.reranker.qwen3_transformers import Qwen3TransformersReranker
 from backend.rag.retriever.retriever import Retriever
 from backend.rag.vector_store.qdrant import QdrantVectorStore
 
 
 @lru_cache(maxsize=1)
 def get_retriever() -> Retriever:
-    """Create and cache the RAG retriever."""
+    """Create and cache the RAG retriever and its configured reranker."""
     embedder = OllamaEmbeddingStrategy(
         model=settings.EMBEDDING_MODEL,
         base_url=settings.OLLAMA_BASE_URL,
@@ -24,17 +24,16 @@ def get_retriever() -> Retriever:
     reranker = None
     if settings.RERANKER_ENABLED:
         provider = settings.RERANKER_PROVIDER.strip().lower()
-        if provider != "ollama":
+        if provider != "transformers":
             raise ValueError(
                 f"Unsupported RERANKER_PROVIDER '{settings.RERANKER_PROVIDER}'. "
-                "This version supports 'ollama'."
+                "This version supports 'transformers'."
             )
 
-        reranker = OllamaQwenReranker(
+        reranker = Qwen3TransformersReranker(
             model_name=settings.RERANKER_MODEL,
-            base_url=settings.OLLAMA_BASE_URL,
-            timeout_seconds=settings.RERANKER_TIMEOUT_SECONDS,
-            top_logprobs=settings.RERANKER_TOP_LOGPROBS,
+            device=settings.RERANKER_DEVICE,
+            max_length=settings.RERANKER_MAX_LENGTH,
             instruction=settings.RERANKER_INSTRUCTION,
             max_document_chars=settings.RERANKER_MAX_DOCUMENT_CHARS,
         )

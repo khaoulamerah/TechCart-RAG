@@ -72,8 +72,6 @@ services:
     environment:
       LLM_MODEL: ${LLM_MODEL}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL}
-      RERANKER_ENABLED: ${RERANKER_ENABLED:-true}
-      RERANKER_MODEL: ${RERANKER_MODEL:-dengcao/Qwen3-Reranker-0.6B:Q8_0}
     entrypoint: ["/bin/bash", "/entrypoint.sh"]   # évite l'erreur "permission denied"
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/techcart-models-ready && ollama list >/dev/null 2>&1"]
@@ -117,17 +115,20 @@ services:
       QDRANT_COLLECTION: ${QDRANT_COLLECTION}
       OLLAMA_BASE_URL: http://ollama:11434
 
-      RERANKER_ENABLED: ${RERANKER_ENABLED:-true}
-      RERANKER_PROVIDER: ${RERANKER_PROVIDER:-ollama}
-      RERANKER_MODEL: ${RERANKER_MODEL:-dengcao/Qwen3-Reranker-0.6B:Q8_0}
-      RERANKER_TIMEOUT_SECONDS: ${RERANKER_TIMEOUT_SECONDS:-30}
-      RERANKER_TOP_LOGPROBS: ${RERANKER_TOP_LOGPROBS:-20}
+      RERANKER_ENABLED: ${RERANKER_ENABLED:-false}
+      RERANKER_PROVIDER: ${RERANKER_PROVIDER:-transformers}
+      RERANKER_MODEL: ${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
+      RERANKER_DEVICE: ${RERANKER_DEVICE:-auto}
+      RERANKER_MAX_LENGTH: ${RERANKER_MAX_LENGTH:-2048}
       RERANKER_INSTRUCTION: ${RERANKER_INSTRUCTION:-Given a web search query, retrieve relevant passages that answer the query}
       RERANKER_MAX_DOCUMENT_CHARS: ${RERANKER_MAX_DOCUMENT_CHARS:-12000}
+      HF_HOME: /root/.cache/huggingface
+      HF_HUB_DISABLE_XET: ${HF_HUB_DISABLE_XET:-1}
       RETRIEVAL_TIMEOUT_SECONDS: ${RETRIEVAL_TIMEOUT_SECONDS:-180}
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data
+      - hf_cache:/root/.cache/huggingface
     ports:
       - "8000:8000"
     depends_on:
@@ -172,6 +173,7 @@ volumes:
   mongodb_data:
   qdrant_data:
   ollama_models:
+  hf_cache:
 
 # ══════════════════════════════════════════════════════════════
 # NETWORK

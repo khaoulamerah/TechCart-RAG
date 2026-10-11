@@ -11,20 +11,6 @@ from backend.rag.vector_store.qdrant import QdrantVectorStore
 
 
 class Retriever:
-    """Two-stage retrieval pipeline with optional observability data.
-
-    Question
-        ↓
-    Embedding
-        ↓
-    Qdrant vector search
-        ↓
-    retrieval_k candidates
-        ↓
-    Reranking
-        ↓
-    top_k documents
-    """
 
     def __init__(
         self,

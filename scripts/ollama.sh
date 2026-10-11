@@ -5,8 +5,6 @@ printf '\033[36m%s\033[0m\n' "TechCart Ollama initialization started"
 
 : "${LLM_MODEL:?LLM_MODEL must be configured}"
 : "${EMBEDDING_MODEL:?EMBEDDING_MODEL must be configured}"
-RERANKER_ENABLED="${RERANKER_ENABLED:-true}"
-RERANKER_MODEL="${RERANKER_MODEL:-dengcao/Qwen3-Reranker-0.6B:Q8_0}"
 
 # Do not let a marker from a previous container run report stale readiness.
 rm -f /tmp/techcart-models-ready
@@ -36,7 +34,6 @@ ensure_model() {
     if grep -Fxq -- "${model}" <<<"${installed_models}"; then
         printf 'Model already installed: %s\n' "${model}"
     elif [[ "${model}" != *:* ]] && grep -Fxq -- "${model}:latest" <<<"${installed_models}"; then
-        # Ollama displays untagged model names with the explicit :latest tag.
         printf 'Model already installed: %s:latest\n' "${model}"
     else
         printf 'Pulling model: %s\n' "${model}"
@@ -44,17 +41,12 @@ ensure_model() {
     fi
 }
 
+# Ollama now serves only the chat LLM and the embedding model.
+# Qwen3-Reranker is loaded separately by Transformers in the backend.
 ensure_model "${LLM_MODEL}"
 ensure_model "${EMBEDDING_MODEL}"
 
-if [[ "${RERANKER_ENABLED,,}" == "true" ]]; then
-    ensure_model "${RERANKER_MODEL}"
-else
-    echo "Ollama reranker is disabled; skipping reranker model pull."
-fi
-
-# The Compose healthcheck stays unhealthy until every configured model exists.
 touch /tmp/techcart-models-ready
-printf '%s\n' "All configured Ollama models are ready."
+printf '%s\n' "Configured Ollama chat and embedding models are ready."
 
 wait "${OLLAMA_PID}"

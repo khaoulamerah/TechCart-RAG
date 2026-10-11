@@ -25,12 +25,12 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "mistral:latest"
     EMBEDDING_MODEL: str = "bge-m3"
 
-    # Reranker (served locally by Ollama; no Hugging Face download required)
-    RERANKER_ENABLED: bool = True
-    RERANKER_PROVIDER: str = "ollama"
-    RERANKER_MODEL: str = "dengcao/Qwen3-Reranker-0.6B:Q8_0"
-    RERANKER_TIMEOUT_SECONDS: float = 30.0
-    RERANKER_TOP_LOGPROBS: int = 20
+    # Reranker (Qwen3-Reranker served by local Transformers on CPU/GPU)
+    RERANKER_ENABLED: bool = False
+    RERANKER_PROVIDER: str = "transformers"
+    RERANKER_MODEL: str = "Qwen/Qwen3-Reranker-0.6B"
+    RERANKER_DEVICE: str = "auto"
+    RERANKER_MAX_LENGTH: int = 2048
     RERANKER_INSTRUCTION: str = (
         "Given a web search query, retrieve relevant passages that answer the query"
     )
