@@ -14,9 +14,9 @@ const CONFIG = {
   STREAM_TIMEOUT_MS: 60000,
 
   WELCOME_MESSAGE:
-    "Bonjour 👋 Je suis l'assistant TechCart. " +
-    "Demandez-moi un GPU, un CPU, ou posez-moi " +
-    "une question concernant les politiques de TechCart.",
+    "Hello 👋 I'm the TechCart assistant. " +
+    "Ask me about a GPU or CPU, or ask a question " +
+    "about TechCart store policies.",
 };
 
 Object.freeze(CONFIG);

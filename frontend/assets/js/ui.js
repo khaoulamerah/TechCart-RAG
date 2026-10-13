@@ -16,6 +16,8 @@ const TechCartUI = (() => {
     scrollAnchor: document.getElementById("scroll-anchor"),
   };
 
+  let toastTimer = null;
+
   // ─────────────────────────────────────────────────────────────
   // SECURITY / TEXT FORMATTING
   // ─────────────────────────────────────────────────────────────
@@ -465,204 +467,217 @@ const TechCartUI = (() => {
   // CONVERSATION HISTORY
   // ─────────────────────────────────────────────────────────────
 
-  function renderHistoryList(
-    conversations,
-    activeId,
-    handlers
-  ) {
+  function renderHistoryList(conversations, activeId, handlers = {}) {
     if (!dom.historyList) {
       return;
     }
 
     const {
-      onSelect,
-      onRename,
-      onDelete,
+      onSelect = () => {},
+      onRename = () => {},
+      onDelete = () => {},
+      onPin = () => {},
+      onShare = () => {},
     } = handlers;
 
-    dom.historyList.innerHTML = "";
+    closeAllDropdowns();
+    dom.historyList.replaceChildren();
 
-    conversations.forEach((conv) => {
-      const item =
-        document.createElement("div");
+    if (!Array.isArray(conversations) || conversations.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "history-empty-state";
+      empty.textContent = "Your conversations will appear here.";
+      dom.historyList.appendChild(empty);
+      return;
+    }
 
-      item.className =
-        "history-item" +
-        (
-          conv.id === activeId
-            ? " history-item--active"
-            : ""
-        );
+    conversations.forEach((conv, index) => {
+      const item = document.createElement("div");
+      item.className = "history-item";
+      if (conv.id === activeId) {
+        item.classList.add("history-item--active");
+      }
+      if (conv.isPinned) {
+        item.classList.add("history-item--pinned");
+      }
 
-      // ───────────────────────────────────────
-      // Conversation title
-      // ───────────────────────────────────────
-
-      const titleBtn =
-        document.createElement("button");
-
+      // Open conversation by clicking its title.
+      const titleBtn = document.createElement("button");
       titleBtn.type = "button";
+      titleBtn.className = "history-item-title";
+      titleBtn.title = conv.title || "New chat";
+      titleBtn.addEventListener("click", () => onSelect(conv.id));
 
-      titleBtn.className =
-        "history-item-title";
+      if (conv.isPinned) {
+        const pinIndicator = document.createElement("span");
+        pinIndicator.className = "history-item-pin-indicator";
+        pinIndicator.innerHTML = historyActionIconSVG("pin");
+        pinIndicator.setAttribute("aria-hidden", "true");
+        titleBtn.appendChild(pinIndicator);
+      }
 
-      titleBtn.textContent =
-        conv.title ||
-        "Nouvelle conversation";
+      const titleText = document.createElement("span");
+      titleText.className = "history-item-title-text";
+      titleText.textContent = conv.title || "New chat";
+      titleBtn.appendChild(titleText);
 
-      titleBtn.addEventListener(
-        "click",
-        () => {
-          onSelect(conv.id);
-        }
-      );
-
-      // ───────────────────────────────────────
-      // Menu button
-      // ───────────────────────────────────────
-
-      const menuBtn =
-        document.createElement("button");
-
+      // Three-dot menu button.
+      const menuBtn = document.createElement("button");
       menuBtn.type = "button";
+      menuBtn.className = "history-item-menu-btn";
+      menuBtn.setAttribute("aria-label", `Options for ${conv.title || "New chat"}`);
+      menuBtn.setAttribute("aria-haspopup", "menu");
+      menuBtn.setAttribute("aria-expanded", "false");
+      menuBtn.innerHTML = kebabIconSVG();
 
-      menuBtn.className =
-        "history-item-menu-btn";
-
-      menuBtn.setAttribute(
-        "aria-label",
-        "Options de la conversation"
-      );
-
-      menuBtn.innerHTML =
-        kebabIconSVG();
-
-      // ───────────────────────────────────────
-      // Dropdown
-      // ───────────────────────────────────────
-
-      const dropdown =
-        document.createElement("div");
-
-      dropdown.className =
-        "history-item-dropdown";
-
+      // Dropdown is kept hidden until its matching three-dot button is clicked.
+      const dropdown = document.createElement("div");
+      dropdown.className = "history-item-dropdown";
       dropdown.hidden = true;
+      dropdown.setAttribute("role", "menu");
+      dropdown.setAttribute("aria-label", `Actions for ${conv.title || "New chat"}`);
+      dropdown.id = `history-menu-${String(conv.id || index).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+      menuBtn.setAttribute("aria-controls", dropdown.id);
 
-      // Rename
-      const renameBtn =
-        document.createElement("button");
-
-      renameBtn.type = "button";
-      renameBtn.textContent = "Renommer";
-
-      renameBtn.addEventListener(
-        "click",
-        (event) => {
+      const makeAction = ({ label, icon, className = "", onClick }) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `history-item-dropdown-action ${className}`.trim();
+        button.setAttribute("role", "menuitem");
+        button.innerHTML = `${historyActionIconSVG(icon)}<span></span>`;
+        button.querySelector("span").textContent = label;
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
           event.stopPropagation();
-
           closeAllDropdowns();
+          onClick();
+        });
+        return button;
+      };
 
-          beginRename(
-            item,
-            titleBtn,
-            conv,
-            onRename
-          );
+      dropdown.appendChild(makeAction({
+        label: "Rename",
+        icon: "rename",
+        onClick: () => beginRename(item, titleBtn, conv, onRename),
+      }));
+
+      dropdown.appendChild(makeAction({
+        label: conv.isPinned ? "Unpin" : "Pin",
+        icon: "pin",
+        onClick: () => onPin(conv.id),
+      }));
+
+      dropdown.appendChild(makeAction({
+        label: "Share",
+        icon: "share",
+        onClick: () => onShare(conv.id),
+      }));
+
+      const separator = document.createElement("div");
+      separator.className = "history-item-dropdown-separator";
+      separator.setAttribute("role", "separator");
+      dropdown.appendChild(separator);
+
+      dropdown.appendChild(makeAction({
+        label: "Delete",
+        icon: "delete",
+        className: "history-item-dropdown-btn--danger",
+        onClick: () => onDelete(conv.id),
+      }));
+
+      menuBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const wasOpen = !dropdown.hidden;
+        closeAllDropdowns();
+        if (wasOpen) {
+          return;
         }
-      );
 
-      // Delete
-      const deleteBtn =
-        document.createElement("button");
+        dropdown.hidden = false;
+        menuBtn.setAttribute("aria-expanded", "true");
+        positionHistoryDropdown(dropdown, menuBtn);
+      });
 
-      deleteBtn.type = "button";
-
-      deleteBtn.className =
-        "history-item-dropdown-btn--danger";
-
-      deleteBtn.textContent =
-        "Supprimer";
-
-      deleteBtn.addEventListener(
-        "click",
-        (event) => {
-          event.stopPropagation();
-
-          closeAllDropdowns();
-
-          onDelete(conv.id);
-        }
-      );
-
-      dropdown.appendChild(renameBtn);
-      dropdown.appendChild(deleteBtn);
-
-      // Toggle dropdown
-      menuBtn.addEventListener(
-        "click",
-        (event) => {
-          event.stopPropagation();
-
-          const wasOpen =
-            !dropdown.hidden;
-
-          closeAllDropdowns();
-
-          dropdown.hidden = wasOpen;
-        }
-      );
-
-      item.appendChild(titleBtn);
-      item.appendChild(menuBtn);
-      item.appendChild(dropdown);
-
+      item.append(titleBtn, menuBtn, dropdown);
       dom.historyList.appendChild(item);
     });
   }
 
-  function closeAllDropdowns() {
-    document
-      .querySelectorAll(
-        ".history-item-dropdown"
-      )
-      .forEach(
-        (dropdown) => {
-          dropdown.hidden = true;
-        }
-      );
+  function positionHistoryDropdown(dropdown, trigger) {
+    // Position the menu against the viewport so it is not clipped by the
+    // scrollable history list, including for conversations near the bottom.
+    const triggerRect = trigger.getBoundingClientRect();
+    const viewportPadding = 8;
+    const menuWidth = Math.max(dropdown.offsetWidth, 184);
+    const menuHeight = dropdown.offsetHeight;
+
+    let left = triggerRect.right - menuWidth;
+    left = Math.max(
+      viewportPadding,
+      Math.min(left, window.innerWidth - menuWidth - viewportPadding)
+    );
+
+    let top = triggerRect.bottom + 4;
+    if (top + menuHeight > window.innerHeight - viewportPadding) {
+      top = triggerRect.top - menuHeight - 4;
+    }
+    top = Math.max(
+      viewportPadding,
+      Math.min(top, window.innerHeight - menuHeight - viewportPadding)
+    );
+
+    dropdown.style.left = `${left}px`;
+    dropdown.style.top = `${top}px`;
   }
 
-  document.addEventListener(
-    "click",
-    closeAllDropdowns
-  );
+  function closeAllDropdowns() {
+    document.querySelectorAll(".history-item-dropdown").forEach((dropdown) => {
+      dropdown.hidden = true;
+      dropdown.style.left = "";
+      dropdown.style.top = "";
+      const item = dropdown.closest(".history-item");
+      const trigger = item?.querySelector(".history-item-menu-btn");
+      trigger?.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  document.addEventListener("click", closeAllDropdowns);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    const openMenu = document.querySelector(
+      ".history-item-dropdown:not([hidden])"
+    );
+    if (!openMenu) {
+      return;
+    }
+
+    const trigger = openMenu
+      .closest(".history-item")
+      ?.querySelector(".history-item-menu-btn");
+    closeAllDropdowns();
+    trigger?.focus();
+  });
+  window.addEventListener("resize", closeAllDropdowns);
+  dom.historyList?.addEventListener("scroll", closeAllDropdowns);
 
   // ─────────────────────────────────────────────────────────────
   // RENAME CONVERSATION
   // ─────────────────────────────────────────────────────────────
 
-  function beginRename(
-    item,
-    titleBtn,
-    conv,
-    onRename
-  ) {
-    const input =
-      document.createElement("input");
-
+  function beginRename(item, titleBtn, conv, onRename) {
+    const input = document.createElement("input");
     input.type = "text";
-
-    input.className =
-      "history-item-rename-input";
-
-    input.value =
-      conv.title || "";
-
+    input.className = "history-item-rename-input";
+    input.value = conv.title || "";
     input.maxLength = 60;
+    input.setAttribute("aria-label", "Conversation name");
 
     titleBtn.replaceWith(input);
-
     input.focus();
     input.select();
 
@@ -672,57 +687,54 @@ const TechCartUI = (() => {
       if (settled) {
         return;
       }
-
       settled = true;
-
-      const newTitle =
-        input.value.trim() ||
-        "Nouvelle conversation";
-
-      onRename(
-        conv.id,
-        newTitle
-      );
+      const newTitle = input.value.trim() || "New chat";
+      onRename(conv.id, newTitle);
     }
 
     function cancel() {
       if (settled) {
         return;
       }
-
       settled = true;
-
-      input.replaceWith(
-        titleBtn
-      );
+      input.replaceWith(titleBtn);
     }
 
-    input.addEventListener(
-      "keydown",
-      (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          commit();
-        }
-
-        if (event.key === "Escape") {
-          event.preventDefault();
-          cancel();
-        }
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commit();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        cancel();
       }
-    );
+    });
+    input.addEventListener("blur", commit);
+    input.addEventListener("click", (event) => event.stopPropagation());
+  }
 
-    input.addEventListener(
-      "blur",
-      commit
-    );
+  // Small non-blocking feedback for pin/share actions.
+  function showToast(message, type = "success") {
+    let toast = document.getElementById("techcart-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "techcart-toast";
+      toast.className = "app-toast";
+      toast.setAttribute("role", "status");
+      toast.setAttribute("aria-live", "polite");
+      document.body.appendChild(toast);
+    }
 
-    input.addEventListener(
-      "click",
-      (event) => {
-        event.stopPropagation();
-      }
-    );
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+    }
+
+    toast.className = `app-toast app-toast--${type}`;
+    toast.textContent = message;
+    toast.hidden = false;
+    toastTimer = setTimeout(() => {
+      toast.hidden = true;
+    }, 2800);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -775,6 +787,29 @@ const TechCartUI = (() => {
         />
       </svg>
     `;
+  }
+
+  function historyActionIconSVG(name) {
+    const icons = {
+      rename: `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+        </svg>`,
+      pin: `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m16 3 5 5-4 1-4 4v5l-2-2-2 2v-5l4-4 1-4Z"/><path d="m5 19 5-5"/>
+        </svg>`,
+      share: `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4M8.7 13.3l6.6 4.4"/>
+        </svg>`,
+      delete: `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/>
+        </svg>`,
+    };
+
+    return icons[name] || "";
   }
 
   function chipAvatarSVG() {
@@ -894,6 +929,7 @@ const TechCartUI = (() => {
 
     // History
     renderHistoryList,
+    showToast,
 
     // Theme
     applyTheme,

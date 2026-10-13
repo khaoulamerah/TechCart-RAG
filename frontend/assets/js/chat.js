@@ -21,7 +21,8 @@ const TechCartChat = (() => {
         CONFIG.STORAGE_KEY
       );
 
-      return raw ? JSON.parse(raw) : [];
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch (_) {
       return [];
     }
@@ -41,7 +42,7 @@ const TechCartChat = (() => {
 
     const title =
       firstUserMessage?.content?.slice(0, 40) ||
-      "Nouvelle conversation";
+      "New chat";
 
     const existingIndex =
       conversations.findIndex(
@@ -49,18 +50,26 @@ const TechCartChat = (() => {
           conversation.id === state.conversationId
       );
 
+    const existingConversation =
+      existingIndex >= 0 ? conversations[existingIndex] : null;
+
     const record = {
+      ...(existingConversation || {}),
       id: state.conversationId,
-
       backendConversationId:
-        state.backendConversationId,
-
-      sessionId: state.sessionId,
-
-      title,
-
+        state.backendConversationId ??
+        existingConversation?.backendConversationId ??
+        null,
+      sessionId:
+        state.sessionId ?? existingConversation?.sessionId ?? null,
+      // Keep a user-defined title when new messages are added.
+      title: existingConversation?.isTitleCustom
+        ? existingConversation.title
+        : title,
+      isTitleCustom: existingConversation?.isTitleCustom ?? false,
+      isPinned: existingConversation?.isPinned ?? false,
+      createdAt: existingConversation?.createdAt ?? Date.now(),
       messages: state.messages,
-
       updatedAt: Date.now(),
     };
 
@@ -84,9 +93,7 @@ const TechCartChat = (() => {
 
 
   function renderSidebarHistory() {
-    const conversations = loadConversations().sort(
-      (a, b) => b.updatedAt - a.updatedAt
-    );
+    const conversations = sortConversations(loadConversations());
 
     TechCartUI.renderHistoryList(
       conversations,
@@ -95,6 +102,8 @@ const TechCartChat = (() => {
         onSelect: openConversation,
         onRename: renameConversation,
         onDelete: deleteConversationById,
+        onPin: pinConversation,
+        onShare: shareConversation,
       }
     );
   }
@@ -112,8 +121,9 @@ const TechCartChat = (() => {
       return;
     }
 
-    conversations[index].title =
-      newTitle;
+    conversations[index].title = newTitle;
+    conversations[index].isTitleCustom = true;
+    conversations[index].updatedAt = Date.now();
 
     try {
       localStorage.setItem(
@@ -137,6 +147,13 @@ const TechCartChat = (() => {
       );
 
     if (!conversation) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${conversation.title || "New chat"}"? This action cannot be undone.`
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -168,9 +185,7 @@ const TechCartChat = (() => {
     }
 
     if (state.conversationId === id) {
-      const next = remaining.sort(
-        (a, b) => b.updatedAt - a.updatedAt
-      )[0];
+      const next = sortConversations(remaining)[0];
 
       if (next) {
         openConversation(next.id);
@@ -182,6 +197,115 @@ const TechCartChat = (() => {
     }
   }
 
+
+  function sortConversations(conversations) {
+    return [...conversations].sort((a, b) => {
+      const pinOrder = Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned));
+      if (pinOrder !== 0) {
+        return pinOrder;
+      }
+      return (b.updatedAt || b.createdAt || 0) -
+        (a.updatedAt || a.createdAt || 0);
+    });
+  }
+
+  function pinConversation(id) {
+    const conversations = loadConversations();
+    const conversation = conversations.find((item) => item.id === id);
+    if (!conversation) {
+      return;
+    }
+
+    conversation.isPinned = !conversation.isPinned;
+
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(conversations));
+    } catch (error) {
+      console.error("Unable to save pinned conversation:", error);
+      TechCartUI.showToast("Could not update the pinned state.", "error");
+      return;
+    }
+
+    renderSidebarHistory();
+    TechCartUI.showToast(
+      conversation.isPinned ? "Conversation pinned." : "Conversation unpinned."
+    );
+  }
+
+  async function shareConversation(id) {
+    const conversation = loadConversations().find((item) => item.id === id);
+    if (!conversation) {
+      TechCartUI.showToast("Conversation not found.", "error");
+      return;
+    }
+
+    const title = conversation.title || "TechCart conversation";
+    const transcript = (conversation.messages || [])
+      .map((message) => {
+        const speaker = message.role === "user" ? "You" : "TechCart";
+        return `${speaker}:\n${message.content || ""}`;
+      })
+      .join("\n\n");
+    const shareText = `${title}\n\n${transcript}`.trim();
+
+    if (!transcript) {
+      TechCartUI.showToast("There are no messages to share yet.", "error");
+      return;
+    }
+
+    // Native share is available on some browsers/devices. It shares the
+    // conversation transcript, not a public URL to a hosted conversation.
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title, text: shareText });
+        TechCartUI.showToast("Conversation shared.");
+        return;
+      } catch (error) {
+        if (error?.name === "AbortError") {
+          return; // The user cancelled the share sheet.
+        }
+        console.warn("Native sharing failed; trying clipboard:", error);
+      }
+    }
+
+    try {
+      await copyTextToClipboard(shareText);
+      TechCartUI.showToast("Conversation copied to clipboard.");
+    } catch (error) {
+      console.error("Unable to share conversation:", error);
+      TechCartUI.showToast(
+        "Unable to share this conversation in this browser.",
+        "error"
+      );
+    }
+  }
+
+  async function copyTextToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return;
+      } catch (_) {
+        // Try the legacy fallback if clipboard permissions are unavailable.
+      }
+    }
+
+    // Fallback for browsers without the Clipboard API or clipboard permission.
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    if (!copied) {
+      throw new Error("Clipboard copy was not successful.");
+    }
+  }
 
   function openConversation(id) {
     const conversations = loadConversations();
