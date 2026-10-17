@@ -152,6 +152,7 @@ cp .env.example .env
 ```
 
 Edit `.env` and review at least these settings:
+
 The credentials in `.env.example` are **development examples, not production secrets**. Use private credentials for your local `.env`, and do not commit `.env` to version control.
 
 ## Run with Docker Compose
