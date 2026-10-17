@@ -1,4 +1,6 @@
-from backend.rag.reranker.base import Reranker
-from backend.rag.reranker.qwen3_transformers import Qwen3TransformersReranker
+"""Reranker interfaces and remote client for TechCart."""
 
-__all__ = ["Reranker", "Qwen3TransformersReranker"]
+from backend.rag.reranker.base import Reranker
+from backend.rag.reranker.http_client import HttpReranker, RerankerServiceError
+
+__all__ = ["Reranker", "HttpReranker", "RerankerServiceError"]

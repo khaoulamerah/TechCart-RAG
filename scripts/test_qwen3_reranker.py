@@ -1,58 +1,58 @@
-"""Download/load Qwen3-Reranker and run a small local ranking smoke test.
+"""Smoke-test the dedicated HTTP reranker from inside the backend container.
 
-Run inside Docker after rebuilding:
+Run with:
     docker compose exec backend python -m scripts.test_qwen3_reranker
 """
 
 from backend.config.settings import settings
-from backend.rag.reranker.qwen3_transformers import Qwen3TransformersReranker
+from backend.rag.reranker.http_client import HttpReranker
 
 
 def main() -> None:
-    reranker = Qwen3TransformersReranker(
+    if not settings.RERANKER_ENABLED:
+        raise SystemExit("Set RERANKER_ENABLED=true in .env before this test.")
+
+    reranker = HttpReranker(
+        base_url=settings.RERANKER_BASE_URL,
         model_name=settings.RERANKER_MODEL,
-        device=settings.RERANKER_DEVICE,
-        max_length=settings.RERANKER_MAX_LENGTH,
-        instruction=settings.RERANKER_INSTRUCTION,
+        timeout_seconds=settings.RERANKER_TIMEOUT_SECONDS,
         max_document_chars=settings.RERANKER_MAX_DOCUMENT_CHARS,
     )
-
-    question = "What is the store return policy?"
-    candidates = [
-        {
-            "id": "irrelevant-gpu",
-            "payload": {
-                "text": "This document describes graphics card specifications and GPU memory."
+    try:
+        reranker.warm_up()
+        query = "What is the store return policy?"
+        candidates = [
+            {
+                "id": "irrelevant-gpu",
+                "payload": {
+                    "text": "This document describes graphics card specifications and GPU memory."
+                },
             },
-        },
-        {
-            "id": "relevant-returns",
-            "payload": {
-                "text": "Customers can return eligible products according to the store's return policy."
+            {
+                "id": "relevant-returns",
+                "payload": {
+                    "text": "Customers can return eligible products according to the store's return policy."
+                },
             },
-        },
-    ]
-
-    reranker.warm_up()
-    results = reranker.rerank(question, candidates, top_k=len(candidates))
-
-    print("QWEN3 TRANSFORMERS RERANKER OK")
-    print("Model:", settings.RERANKER_MODEL)
-    print("Device preference:", settings.RERANKER_DEVICE)
-    print("Ranked results:")
-    for index, result in enumerate(results, start=1):
-        payload = result.get("payload") or {}
-        print(
-            f"{index}. id={result.get('id')} "
-            f"score={result.get('rerank_score', 0.0):.6f} "
-            f"text={str(payload.get('text', ''))[:100]!r}"
-        )
-
-    if results and results[0].get("id") != "relevant-returns":
-        print(
-            "WARNING: the relevance example did not rank first. "
-            "Inspect model output and prompt before enabling globally."
-        )
+        ]
+        results = reranker.rerank(query, candidates, top_k=2)
+        print("RERANKER HTTP SMOKE TEST PASSED")
+        print("Endpoint:", settings.RERANKER_BASE_URL)
+        print("Model:", settings.RERANKER_MODEL)
+        for rank, result in enumerate(results, start=1):
+            text = (result.get("payload") or {}).get("text", "")
+            print(
+                f"{rank}. id={result.get('id')} "
+                f"score={result.get('rerank_score', 0.0):.6f} "
+                f"text={text[:100]!r}"
+            )
+        if results and results[0].get("id") != "relevant-returns":
+            print(
+                "WARNING: the expected document did not rank first. "
+                "Inspect model prompt and quality before relying on this example."
+            )
+    finally:
+        reranker.close()
 
 
 if __name__ == "__main__":

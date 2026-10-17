@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from time import perf_counter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from backend.rag.embeddings.embedder import (
-    OllamaEmbeddingStrategy,
-)
 from backend.rag.reranker.base import Reranker
-from backend.rag.vector_store.qdrant import QdrantVectorStore
+
+if TYPE_CHECKING:
+    from backend.rag.embeddings.embedder import OllamaEmbeddingStrategy
+    from backend.rag.vector_store.qdrant import QdrantVectorStore
 
 
 class Retriever:

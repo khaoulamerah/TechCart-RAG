@@ -13,6 +13,7 @@ from backend.config.settings import settings
 from backend.rag.generator.base import LLMProvider, LLMProviderError
 from backend.rag.prompt import build_rag_prompt
 from backend.rag.retriever.retriever import Retriever
+from backend.rag.reranker.http_client import RerankerServiceError
 from backend.repositories.rag_trace import RAGTraceRepository
 from backend.services.conversation import ConversationService
 
@@ -358,6 +359,10 @@ class ChatService:
                 )
             elif isinstance(exc, LLMProviderError):
                 message_text = "Le modèle IA est actuellement indisponible."
+            elif isinstance(exc, RerankerServiceError):
+                message_text = (
+                    "Le service de classement des documents est actuellement indisponible."
+                )
             elif trace.get("retrieval") is None:
                 message_text = (
                     "La base de connaissances est actuellement indisponible."

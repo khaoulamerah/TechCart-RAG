@@ -7,63 +7,48 @@ from backend.config.settings import settings
 from backend.database.mongodb import mongodb
 
 logger = logging.getLogger("techcart.health")
-
 router = APIRouter(tags=["health"])
 
 
-async def check_ollama() -> str:
+async def _check_url(url: str) -> str:
     try:
-        async with httpx.AsyncClient(
-            timeout=3.0
-        ) as client:
-
-            response = await client.get(
-                f"{settings.OLLAMA_BASE_URL}/api/tags"
-            )
-
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            response = await client.get(url)
             response.raise_for_status()
-
         return "ok"
-
     except Exception:
         return "unavailable"
+
+
+async def check_ollama() -> str:
+    return await _check_url(f"{settings.OLLAMA_BASE_URL}/api/tags")
 
 
 async def check_qdrant() -> str:
-    try:
-        async with httpx.AsyncClient(
-            timeout=3.0
-        ) as client:
+    return await _check_url(
+        f"http://{settings.QDRANT_HOST}:{settings.QDRANT_PORT}/collections"
+    )
 
-            response = await client.get(
-                f"http://{settings.QDRANT_HOST}:{settings.QDRANT_PORT}/collections"
-            )
 
-            response.raise_for_status()
-
-        return "ok"
-
-    except Exception:
-        return "unavailable"
+async def check_reranker() -> str:
+    if not settings.RERANKER_ENABLED:
+        return "disabled"
+    return await _check_url(f"{settings.RERANKER_BASE_URL}/health/ready")
 
 
 @router.get("/health")
 async def health() -> dict:
-    mongo_status = (
-        "ok"
-        if mongodb.db is not None
-        else "unavailable"
-    )
-
-    qdrant_status = await check_qdrant()
-    ollama_status = await check_ollama()
-
-    return {
-        "status": "ok",
-        "services": {
-            "backend": "ok",
-            "mongodb": mongo_status,
-            "qdrant": qdrant_status,
-            "ollama": ollama_status,
-        },
+    services = {
+        "backend": "ok",
+        "mongodb": "ok" if mongodb.db is not None else "unavailable",
+        "qdrant": await check_qdrant(),
+        "ollama": await check_ollama(),
+        "reranker": await check_reranker(),
     }
+    required_statuses = {"ok", "disabled"}
+    overall_status = (
+        "ok"
+        if all(value in required_statuses for value in services.values())
+        else "degraded"
+    )
+    return {"status": overall_status, "services": services}

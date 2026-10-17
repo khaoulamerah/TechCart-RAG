@@ -49,8 +49,8 @@ async def lifespan(app: FastAPI):
         )
 
     async def warmup_models_in_sequence() -> None:
-        # Avoid loading the 4.4 GB chat model and reranker into Ollama at the
-        # same time on machines with limited RAM/VRAM.
+        # Warm up the chat model and check the separately hosted reranker in
+        # sequence to keep startup logs and resource usage easier to diagnose.
         await warmup_llm()
         await warmup_reranker()
 
@@ -67,6 +67,15 @@ async def lifespan(app: FastAPI):
             warmup_task.cancel()
 
         await asyncio.gather(warmup_task, return_exceptions=True)
+
+        try:
+            retriever = get_retriever()
+            close_reranker = getattr(retriever.reranker, "close", None)
+            if callable(close_reranker):
+                await asyncio.to_thread(close_reranker)
+        except Exception:
+            logger.exception("Failed to close reranker client cleanly.")
+
         await close_mongo_connection()
         logger.info("TechCart backend stopped.")
 
