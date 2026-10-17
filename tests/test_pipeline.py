@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from backend.rag.data_pipelines.pipeline import Pipeline
 from backend.rag.data_pipelines.stages.base import FilePaths
 from backend.rag.data_pipelines.stages.clean import CleanStage
@@ -5,83 +8,28 @@ from backend.rag.data_pipelines.stages.derive import DeriveStage
 from backend.rag.data_pipelines.stages.load import LoadStage
 from backend.rag.data_pipelines.stages.save import SaveStage
 from backend.rag.data_pipelines.stages.validate import ValidateStage
-from backend.rag.data_pipelines.strategies.cleaning.csv import (
-    CsvCleaningStrategy,
-)
-from backend.rag.data_pipelines.strategies.cleaning.markdown import (
-    MarkdownCleaningStrategy,
-)
-from backend.rag.data_pipelines.strategies.derive.csv import (
-    CsvDeriveStrategy,
-)
-from backend.rag.data_pipelines.strategies.derive.markdown import (
-    MarkdownDeriveStrategy,
-)
-from backend.rag.data_pipelines.strategies.loading.csv import (
-    CsvLoadingStrategy,
-)
-from backend.rag.data_pipelines.strategies.loading.markdown import (
-    MarkdownLoadingStrategy,
-)
-from backend.rag.data_pipelines.strategies.save.csv import (
-    CsvSaveStrategy,
-)
-from backend.rag.data_pipelines.strategies.save.markdown import (
-    MarkdownSaveStrategy,
-)
-from backend.rag.data_pipelines.strategies.validate.csv import (
-    CsvValidationStrategy,
-)
-from backend.rag.data_pipelines.strategies.validate.markdown import (
-    MarkdownValidationStrategy,
-)
+from backend.rag.data_pipelines.utils import DataType
 
 
-def create_csv_pipeline() -> Pipeline:
+PROJECT_ROOT = Path(
+    __file__
+).resolve().parents[1]
 
-    loading_strategy = CsvLoadingStrategy()
-    cleaning_strategy = CsvCleaningStrategy()
-    validation_strategy = CsvValidationStrategy()
-    derive_strategy = CsvDeriveStrategy()
-    save_strategy = CsvSaveStrategy()
 
+def create_pipeline() -> Pipeline:
     return Pipeline(
         stages=[
-            LoadStage(loading_strategy),
-            CleanStage(cleaning_strategy),
-            ValidateStage(validation_strategy),
-            DeriveStage(derive_strategy),
-            SaveStage(save_strategy),
-        ]
-    )
-
-
-def create_markdown_pipeline() -> Pipeline:
-
-    loading_strategy = MarkdownLoadingStrategy()
-    cleaning_strategy = MarkdownCleaningStrategy()
-    validation_strategy = MarkdownValidationStrategy()
-    derive_strategy = MarkdownDeriveStrategy()
-    save_strategy = MarkdownSaveStrategy()
-
-    return Pipeline(
-        stages=[
-            LoadStage(loading_strategy),
-            CleanStage(cleaning_strategy),
-            ValidateStage(validation_strategy),
-            DeriveStage(derive_strategy),
-            SaveStage(save_strategy),
+            LoadStage(),
+            CleanStage(),
+            ValidateStage(),
+            DeriveStage(),
+            SaveStage(),
         ]
     )
 
 
 def main() -> None:
-
-    csv_datasets: FilePaths = [
-        "data/raw/All_GPUs.csv",
-        "data/raw/amd-cpus.csv",
-        "data/raw/Intel_CPUs.csv",
-    ]
+    os.chdir(PROJECT_ROOT)
 
     markdown_datasets: FilePaths = [
         "data/semi_structured/documentation/store_info.md",
@@ -93,39 +41,39 @@ def main() -> None:
         "data/semi_structured/policies/warranty_policy.md",
     ]
 
-    # CSV PIPELINE
+    print(
+        "\n" + "=" * 70
+    )
+    print(
+        "STARTING MARKDOWN DATA PIPELINE"
+    )
+    print(
+        "=" * 70
+    )
 
-    print("\n" + "=" * 60)
-    print("STARTING CSV PIPELINE")
-    print("=" * 60)
+    pipeline = create_pipeline()
 
-    csv_pipeline: Pipeline = create_csv_pipeline()
+    pipeline.set_datatype(
+        DataType.MD
+    )
 
-    csv_result = csv_pipeline.run(csv_datasets)
-
-    print("\n" + "=" * 60)
-    print("CSV PIPELINE RESULT")
-    print("=" * 60)
-
-    print(csv_result)
-
-    # MARKDOWN PIPELINE
-
-    print("\n" + "=" * 60)
-    print("STARTING MARKDOWN PIPELINE")
-    print("=" * 60)
-
-    markdown_pipeline: Pipeline = create_markdown_pipeline()
-
-    markdown_result = markdown_pipeline.run(
+    result = pipeline.run(
         markdown_datasets
     )
 
-    print("\n" + "=" * 60)
-    print("MARKDOWN PIPELINE RESULT")
-    print("=" * 60)
+    print(
+        "\n" + "=" * 70
+    )
+    print(
+        "MARKDOWN PIPELINE COMPLETED"
+    )
+    print(
+        "=" * 70
+    )
 
-    print(markdown_result)
+    print(
+        f"Processed documents: {len(result)}"
+    )
 
 
 if __name__ == "__main__":

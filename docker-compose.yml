@@ -2,6 +2,7 @@
 # Stop all:     docker compose stop
 # View logs:    docker compose logs -f backend
 # Rebuild:      docker compose up -d --build
+# docker compose config --quiet
 # Pull a model: docker compose exec ollama ollama pull mistral
 # ══════════════════════════════════════════════════════════════
 
@@ -79,13 +80,15 @@ services:
     environment:
       LLM_MODEL: ${LLM_MODEL}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL}
+      RERANKER_ENABLED: ${RERANKER_ENABLED:-true}
+      RERANKER_MODEL: ${RERANKER_MODEL:-dengcao/Qwen3-Reranker-0.6B:Q8_0}
     entrypoint: ["/bin/bash", "/entrypoint.sh"]   # évite l'erreur "permission denied"
     healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
+      test: ["CMD-SHELL", "test -f /tmp/techcart-models-ready && ollama list >/dev/null 2>&1"]
       interval: 15s
       timeout: 10s
-      retries: 10
-      start_period: 30s
+      retries: 30
+      start_period: 60s
     restart: unless-stopped
     networks:
       - techcart_network
@@ -109,11 +112,17 @@ services:
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
       QDRANT_GRPC_PORT: 6334
-      QDRANT_COLLECTION: techcart_products
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION}
       OLLAMA_BASE_URL: http://ollama:11434
 
-      RERANKER_MODEL: ${RERANKER_MODEL}
-      RERANKER_USE_FP16: ${RERANKER_USE_FP16}
+      RERANKER_ENABLED: ${RERANKER_ENABLED:-true}
+      RERANKER_PROVIDER: ${RERANKER_PROVIDER:-ollama}
+      RERANKER_MODEL: ${RERANKER_MODEL:-dengcao/Qwen3-Reranker-0.6B:Q8_0}
+      RERANKER_TIMEOUT_SECONDS: ${RERANKER_TIMEOUT_SECONDS:-30}
+      RERANKER_TOP_LOGPROBS: ${RERANKER_TOP_LOGPROBS:-20}
+      RERANKER_INSTRUCTION: ${RERANKER_INSTRUCTION:-Given a web search query, retrieve relevant passages that answer the query}
+      RERANKER_MAX_DOCUMENT_CHARS: ${RERANKER_MAX_DOCUMENT_CHARS:-12000}
+      RETRIEVAL_TIMEOUT_SECONDS: ${RETRIEVAL_TIMEOUT_SECONDS:-180}
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data
@@ -148,6 +157,8 @@ services:
     restart: unless-stopped
     networks:
       - techcart_network
+    volumes:
+      - ./frontend:/usr/share/nginx/html/ 
     logging:
       driver: "json-file"
       options:

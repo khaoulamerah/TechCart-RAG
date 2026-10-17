@@ -1,8 +1,8 @@
 from backend.rag.embeddings.embedder import (
     OllamaEmbeddingStrategy,
 )
-from backend.rag.reranker.bge import (
-    BGEReranker,
+from backend.rag.reranker.ollama_qwen import (
+    OllamaQwenReranker,
 )
 from backend.rag.vector_store.qdrant import (
     QdrantVectorStore,
@@ -18,12 +18,12 @@ EMBEDDING_MODEL = "bge-m3"
 
 COLLECTION_NAME = "techcart_bge_m3"
 
-RETRIEVAL_K = 20
+RETRIEVAL_K = 10
 TOP_K = 5
 
 
 def main() -> None:
-    """Test BGE-M3 retrieval with reranking."""
+    """Test BGE-M3 retrieval with the Ollama Qwen3 reranker."""
 
     print()
     print("=" * 80)
@@ -41,9 +41,9 @@ def main() -> None:
         collection_name=COLLECTION_NAME,
     )
 
-    reranker = BGEReranker(
-        model_name="BAAI/bge-reranker-v2-m3",
-        use_fp16=False,
+    reranker = OllamaQwenReranker(
+        model_name="dengcao/Qwen3-Reranker-0.6B:Q8_0",
+        base_url=OLLAMA_BASE_URL,
     )
 
     retriever = Retriever(

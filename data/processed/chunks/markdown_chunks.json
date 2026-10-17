@@ -233,7 +233,7 @@
   {
     "id": "payment_policy_chunk_0001",
     "document_id": "payment_policy",
-    "text": "## Accepted Payment Methods\n\n- Credit and debit cards: Visa, Mastercard, American Express.\n- PayPal.",
+    "text": "## Accepted Payment Methods\n\nTechCart accepts the following payment methods for orders in Algeria:\n\n- CIB bank cards.\n- Edahabia cards.\n- Algerian bank cards supported by the payment gateway.\n- Cash on delivery for eligible delivery areas.",
     "metadata": {
       "source": "data/processed/markdown/payment_policy.md",
       "document_type": "markdown",
@@ -244,7 +244,7 @@
   {
     "id": "payment_policy_chunk_0002",
     "document_id": "payment_policy",
-    "text": "## Payment Security\n\nAll payments are processed through PCI-DSS compliant third-party payment providers. TechCart does not store full card numbers on its own servers.",
+    "text": "## Currency\n\nAll TechCart prices are displayed in Algerian dinars (DZD / DA).\n\nFor example:\n\n- 25,000 DA\n- 145,000 DA\n- 320,000 DA\n\nThe amount shown at checkout is the amount charged for the order.",
     "metadata": {
       "source": "data/processed/markdown/payment_policy.md",
       "document_type": "markdown",
@@ -255,7 +255,7 @@
   {
     "id": "payment_policy_chunk_0003",
     "document_id": "payment_policy",
-    "text": "## Billing\n\nCharges appear on your statement as \"TECHCART\". Payment is captured at the time of order confirmation, not at shipment.",
+    "text": "## Payment at Checkout\n\nFor online card payments, the payment is confirmed during checkout.\n\nFor cash-on-delivery orders, payment is made when the order is delivered.",
     "metadata": {
       "source": "data/processed/markdown/payment_policy.md",
       "document_type": "markdown",
@@ -266,7 +266,7 @@
   {
     "id": "payment_policy_chunk_0004",
     "document_id": "payment_policy",
-    "text": "## Currency\n\nAll prices displayed on TechCart are listed and charged in the currency shown on the product page at checkout.",
+    "text": "## Payment Security\n\nTechCart does not store the complete bank card number in its own application database.\n\nOnline card transactions are handled through the configured payment service.",
     "metadata": {
       "source": "data/processed/markdown/payment_policy.md",
       "document_type": "markdown",
@@ -277,11 +277,33 @@
   {
     "id": "payment_policy_chunk_0005",
     "document_id": "payment_policy",
-    "text": "## Failed or Declined Payments\n\nIf a payment fails, the order is not created and no charge is applied. Common causes include insufficient funds, incorrect card details, or a fraud-prevention hold from your bank. If a charge appears despite a failed order, contact support with your bank statement details.",
+    "text": "## Failed Payment\n\nIf an online payment is declined, the order is not confirmed.\n\nPossible reasons include:\n\n- Insufficient account balance.\n- Incorrect card information.\n- A temporary bank restriction.\n- A payment gateway error.\n\nIf the amount appears to have been debited but the order was not confirmed, keep the payment reference and contact TechCart support.",
     "metadata": {
       "source": "data/processed/markdown/payment_policy.md",
       "document_type": "markdown",
       "position": 5,
+      "chunking_strategy": "markdown"
+    }
+  },
+  {
+    "id": "payment_policy_chunk_0006",
+    "document_id": "payment_policy",
+    "text": "## Refunds\n\nWhen a refund is approved, the amount is returned using the applicable payment method.\n\nThe time required for the refund may depend on the bank or payment service.",
+    "metadata": {
+      "source": "data/processed/markdown/payment_policy.md",
+      "document_type": "markdown",
+      "position": 6,
+      "chunking_strategy": "markdown"
+    }
+  },
+  {
+    "id": "payment_policy_chunk_0007",
+    "document_id": "payment_policy",
+    "text": "## Important Note\n\nThe payment methods available for a specific order may depend on the delivery area and the payment options enabled by TechCart at checkout.",
+    "metadata": {
+      "source": "data/processed/markdown/payment_policy.md",
+      "document_type": "markdown",
+      "position": 7,
       "chunking_strategy": "markdown"
     }
   },

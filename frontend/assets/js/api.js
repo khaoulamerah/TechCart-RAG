@@ -34,7 +34,8 @@ const TechCartAPI = (() => {
     sessionId = null,
     conversationId = null,
     onToken = () => {},
-    onDone = () => {}
+    onDone = () => {},
+    onStatus = () => {}
   ) {
     const controller = new AbortController();
 
@@ -184,6 +185,11 @@ const TechCartAPI = (() => {
             continue;
           }
 
+          if (type === "status") {
+            onStatus(data?.message || "");
+            continue;
+          }
+
           if (type === "metadata") {
             resultConversationId =
               data?.conversation_id ??
@@ -252,6 +258,10 @@ const TechCartAPI = (() => {
               fullReply += content;
               onToken(content);
             }
+          }
+
+          if (type === "status") {
+            onStatus(data?.message || "");
           }
 
           if (type === "metadata") {
@@ -493,4 +503,106 @@ class APIError extends Error {
     this.kind = kind;
     this.detail = detail;
   }
+}
+
+
+
+
+// ============================================================
+// Developer / Observability API
+// ============================================================
+
+async function getDeveloperConversations(
+  limit = 100
+) {
+  const response = await fetch(
+    `${CONFIG.API_BASE_URL}/developer/conversations?limit=${limit}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load conversations (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+
+async function getDeveloperConversation(
+  conversationId
+) {
+  const response = await fetch(
+    `${CONFIG.API_BASE_URL}/developer/conversations/${encodeURIComponent(
+      conversationId
+    )}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load conversation (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+
+async function getConversationTraces(
+  conversationId
+) {
+  const response = await fetch(
+    `${CONFIG.API_BASE_URL}/developer/conversations/${encodeURIComponent(
+      conversationId
+    )}/traces`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load RAG traces (${response.status})`
+    );
+  }
+
+  return response.json();
+}
+
+
+async function getRAGTrace(traceId) {
+  const response = await fetch(
+    `${CONFIG.API_BASE_URL}/developer/traces/${encodeURIComponent(
+      traceId
+    )}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load RAG trace (${response.status})`
+    );
+  }
+
+  return response.json();
 }

@@ -2,21 +2,56 @@
 
 ## Accepted Payment Methods
 
-- Credit and debit cards: Visa, Mastercard, American Express.
-- PayPal.
+TechCart accepts the following payment methods for orders in Algeria:
 
-## Payment Security
-
-All payments are processed through PCI-DSS compliant third-party payment providers. TechCart does not store full card numbers on its own servers.
-
-## Billing
-
-Charges appear on your statement as "TECHCART". Payment is captured at the time of order confirmation, not at shipment.
+- CIB bank cards.
+- Edahabia cards.
+- Algerian bank cards supported by the payment gateway.
+- Cash on delivery for eligible delivery areas.
 
 ## Currency
 
-All prices displayed on TechCart are listed and charged in the currency shown on the product page at checkout.
+All TechCart prices are displayed in Algerian dinars (DZD / DA).
 
-## Failed or Declined Payments
+For example:
 
-If a payment fails, the order is not created and no charge is applied. Common causes include insufficient funds, incorrect card details, or a fraud-prevention hold from your bank. If a charge appears despite a failed order, contact support with your bank statement details.
+- 25,000 DA
+- 145,000 DA
+- 320,000 DA
+
+The amount shown at checkout is the amount charged for the order.
+
+## Payment at Checkout
+
+For online card payments, the payment is confirmed during checkout.
+
+For cash-on-delivery orders, payment is made when the order is delivered.
+
+## Payment Security
+
+TechCart does not store the complete bank card number in its own application database.
+
+Online card transactions are handled through the configured payment service.
+
+## Failed Payment
+
+If an online payment is declined, the order is not confirmed.
+
+Possible reasons include:
+
+- Insufficient account balance.
+- Incorrect card information.
+- A temporary bank restriction.
+- A payment gateway error.
+
+If the amount appears to have been debited but the order was not confirmed, keep the payment reference and contact TechCart support.
+
+## Refunds
+
+When a refund is approved, the amount is returned using the applicable payment method.
+
+The time required for the refund may depend on the bank or payment service.
+
+## Important Note
+
+The payment methods available for a specific order may depend on the delivery area and the payment options enabled by TechCart at checkout.

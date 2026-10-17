@@ -41,7 +41,11 @@ async def create_indexes() -> None:
     await conversations.create_index("session_id", unique=True)
     await conversations.create_index("user_id")
     await conversations.create_index("created_at")
-    logger.info("MongoDB indexes ensured on 'conversations'.")
+    traces = mongodb.db["rag_traces"]
+    await traces.create_index([("conversation_id", 1), ("created_at", 1)])
+    await traces.create_index([("created_at", -1)])
+
+    logger.info("MongoDB indexes ensured on conversations and rag_traces.")
 
 
 def get_database() -> AsyncIOMotorDatabase:
