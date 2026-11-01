@@ -36,13 +36,11 @@ services:
       QDRANT__SERVICE__GRPC_PORT: 6334
       QDRANT__LOG_LEVEL: INFO
     volumes:
-      # Volume nommé (au lieu d'un bind mount) : évite les problèmes mmap/verrous
       - qdrant_data:/qdrant/storage
     ports:
       - "6333:6333"
       - "6334:6334"
     healthcheck:
-      # L'image Qdrant n'a ni curl ni wget : on teste le port TCP avec bash
       test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
       interval: 10s
       timeout: 5s
@@ -72,7 +70,7 @@ services:
     environment:
       LLM_MODEL: ${LLM_MODEL}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL}
-    entrypoint: ["/bin/bash", "/entrypoint.sh"]   # évite l'erreur "permission denied"
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]  
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/techcart-models-ready && ollama list >/dev/null 2>&1"]
       interval: 15s
@@ -98,7 +96,51 @@ services:
         max-size: "20m"
         max-file: "5"
 
-  # ── SERVICE 4 : BACKEND (FastAPI) ───────────────────────────
+  # ── SERVICE 4 : RERANKER (Qwen3 / Transformers) ───────────────
+  reranker:
+    build:
+      context: .
+      dockerfile: services/reranker/Dockerfile
+    container_name: techcart_reranker
+    environment:
+      RERANKER_ENABLED: ${RERANKER_ENABLED:-true}
+      RERANKER_MODEL: ${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
+      RERANKER_DEVICE: ${RERANKER_DEVICE:-cpu}
+      RERANKER_MAX_LENGTH: ${RERANKER_MAX_LENGTH:-2048}
+      RERANKER_INSTRUCTION: "${RERANKER_INSTRUCTION:-Given a web search query, retrieve relevant passages that answer the query}"
+      RERANKER_MAX_DOCUMENT_CHARS: ${RERANKER_MAX_DOCUMENT_CHARS:-12000}
+      RERANKER_WARMUP_RETRY_SECONDS: ${RERANKER_WARMUP_RETRY_SECONDS:-60}
+      HF_HOME: /root/.cache/huggingface
+      HF_HUB_DISABLE_XET: ${HF_HUB_DISABLE_XET:-1}
+      HF_HUB_ETAG_TIMEOUT: ${HF_HUB_ETAG_TIMEOUT:-10}
+      HF_HUB_DOWNLOAD_TIMEOUT: ${HF_HUB_DOWNLOAD_TIMEOUT:-60}
+      OMP_NUM_THREADS: ${RERANKER_OMP_NUM_THREADS:-2}
+      MKL_NUM_THREADS: ${RERANKER_OMP_NUM_THREADS:-2}
+      TOKENIZERS_PARALLELISM: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - reranker_cache:/root/.cache/huggingface
+    ports:
+      - "127.0.0.1:8001:8001"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health/live', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - techcart_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ── SERVICE 5 : BACKEND (FastAPI) ───────────────────────────
   backend:
     build:
       context: .
@@ -115,20 +157,15 @@ services:
       QDRANT_COLLECTION: ${QDRANT_COLLECTION}
       OLLAMA_BASE_URL: http://ollama:11434
 
-      RERANKER_ENABLED: ${RERANKER_ENABLED:-false}
-      RERANKER_PROVIDER: ${RERANKER_PROVIDER:-transformers}
+      RERANKER_ENABLED: ${RERANKER_ENABLED:-true}
+      RERANKER_PROVIDER: http
+      RERANKER_BASE_URL: http://reranker:8001
       RERANKER_MODEL: ${RERANKER_MODEL:-Qwen/Qwen3-Reranker-0.6B}
-      RERANKER_DEVICE: ${RERANKER_DEVICE:-auto}
-      RERANKER_MAX_LENGTH: ${RERANKER_MAX_LENGTH:-2048}
-      RERANKER_INSTRUCTION: ${RERANKER_INSTRUCTION:-Given a web search query, retrieve relevant passages that answer the query}
-      RERANKER_MAX_DOCUMENT_CHARS: ${RERANKER_MAX_DOCUMENT_CHARS:-12000}
-      HF_HOME: /root/.cache/huggingface
-      HF_HUB_DISABLE_XET: ${HF_HUB_DISABLE_XET:-1}
+      RERANKER_TIMEOUT_SECONDS: ${RERANKER_TIMEOUT_SECONDS:-60}
       RETRIEVAL_TIMEOUT_SECONDS: ${RETRIEVAL_TIMEOUT_SECONDS:-180}
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data
-      - hf_cache:/root/.cache/huggingface
     ports:
       - "8000:8000"
     depends_on:
@@ -138,6 +175,8 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+      reranker:
+        condition: service_started
     restart: unless-stopped
     networks:
       - techcart_network
@@ -147,7 +186,7 @@ services:
         max-size: "20m"
         max-file: "5"
 
-  # ── SERVICE 5 : FRONTEND (NGINX) ────────────────────────────
+  # ── SERVICE 6 : FRONTEND (NGINX) ────────────────────────────
   frontend:
     build:
       context: .
@@ -173,7 +212,7 @@ volumes:
   mongodb_data:
   qdrant_data:
   ollama_models:
-  hf_cache:
+  reranker_cache:
 
 # ══════════════════════════════════════════════════════════════
 # NETWORK

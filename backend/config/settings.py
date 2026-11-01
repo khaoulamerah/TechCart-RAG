@@ -25,16 +25,11 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "mistral:latest"
     EMBEDDING_MODEL: str = "bge-m3"
 
-    # Reranker (Qwen3-Reranker served by local Transformers on CPU/GPU)
-    RERANKER_ENABLED: bool = False
-    RERANKER_PROVIDER: str = "transformers"
+    RERANKER_ENABLED: bool = True
+    RERANKER_PROVIDER: str = "http"
+    RERANKER_BASE_URL: str = "http://reranker:8001"
     RERANKER_MODEL: str = "Qwen/Qwen3-Reranker-0.6B"
-    RERANKER_DEVICE: str = "auto"
-    RERANKER_MAX_LENGTH: int = 2048
-    RERANKER_INSTRUCTION: str = (
-        "Given a web search query, retrieve relevant passages that answer the query"
-    )
-    RERANKER_MAX_DOCUMENT_CHARS: int = 12000
+    RERANKER_TIMEOUT_SECONDS: float = 60.0
 
     # Retrieval
     RETRIEVAL_K: int = 10

@@ -1,0 +1,372 @@
+
+ reverse proxy :
+
+ Initially, the client sends a request to the reverse proxy server. The proxy server evaluates the request and sends it to the correct backend server. Once the backend server processes the request, it sends a response to the proxy, which sends it back to the client.
+
+
+
+
+
+
+
+
+
+
+
+
+ pour " 4. Après le diagnostic
+Envoie-moi le résultat du test de l'interface avec RERANKER_ENABLED=false et celui de la commande API ci-dessus. Nous pourrons alors corriger précisément backend/rag/reranker/ollama_qwen.py pour rendre le classement compatible avec la réponse d'Ollama, puis réactiver le reranker. " yes when i RERANKER_ENABLED=false in .env and when i sent i message with ui the system sent me a response and when a execute the script voici the response "  khaoulamerah@khaoula  ~/Desktop/Rag-chatbot/ecommerce-rag-chatbot   fix/ollama-reranker-integration  >....
+
+try:
+    response = httpx.post(
+        "http://ollama:11434/api/generate",
+        json=payload,
+        timeout=120,
+    )
+    print("HTTP status:", response.status_code)
+    response.raise_for_status()
+
+    data = response.json()
+    print("Response text:", repr(data.get("response")))
+    print("Thinking:", repr(data.get("thinking")))
+    print("Done reason:", data.get("done_reason"))
+    print(
+        "Log probabilities:",
+        json.dumps(data.get("logprobs"), ensure_ascii=False, indent=2)[:5000],
+    )
+except Exception as exc:
+    print(type(exc).__name__ + ":", str(exc))
+PY
+HTTP status: 200
+Response text: '3'
+Thinking: None
+Done reason: length
+Log probabilities: [
+  {
+    "token": "3",
+    "logprob": -11.929455757141113,
+    "bytes": [
+      51
+    ],
+    "top_logprobs": [
+      {
+        "token": "3",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          51
+        ]
+      },
+      {
+        "token": "+",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          43
+        ]
+      },
+      {
+        "token": "%",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          37
+        ]
+      },
+      {
+        "token": "1",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          49
+        ]
+      },
+      {
+        "token": "-",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          45
+        ]
+      },
+      {
+        "token": ")",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          41
+        ]
+      },
+      {
+        "token": "4",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          52
+        ]
+      },
+      {
+        "token": "\"",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          34
+        ]
+      },
+      {
+        "token": ",",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          44
+        ]
+      },
+      {
+        "token": "&",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          38
+        ]
+      },
+      {
+        "token": "0",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          48
+        ]
+      },
+      {
+        "token": ".",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          46
+        ]
+      },
+      {
+        "token": "(",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          40
+        ]
+      },
+      {
+        "token": "2",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          50
+        ]
+      },
+      {
+        "token": "$",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          36
+        ]
+      },
+      {
+        "token": "*",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          42
+        ]
+      },
+      {
+        "token": "!",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          33
+        ]
+      },
+      {
+        "token": "#",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          35
+        ]
+      },
+      {
+        "token": "'",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          39
+        ]
+      },
+      {
+        "token": "/",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          47
+        ]
+      }
+    ]
+  }
+]
+ khaoulamerah@khaoula  ~/Desktop/Rag-chatbot/ecommerce-rag-chatbot   fix/ollama-reranker-integration  docker compose exec -T backend python - <<'PY'
+import json
+import httpx
+
+model = "dengcao/Qwen3-Reranker-0.6B:Q8_0"
+
+system_prompt = (
+    "<|im_start|>system\n"
+    'Judge whether the Document meets the requirements based on the Query and '
+    'the Instruct provided. Note that the answer can only be "yes" or "no".'
+    "<|im_end|>\n"
+    "<|im_start|>user\n"
+)
+
+instruction = (
+    "Given a web search query, retrieve relevant passages that answer the query"
+)
+
+pair = (
+    f"<Instruct>: {instruction}\n\n"
+    "<Query>: What is the store return policy?\n\n"
+    "<Document>: Customers can return eligible products according to the "                                                                                                      <....
+HTTP status: 200
+Response text: '3'
+Thinking: None
+Done reason: length
+Log probabilities: [
+  {
+    "token": "3",
+    "logprob": -11.929455757141113,
+    "bytes": [
+      51
+    ],
+    "top_logprobs": [
+      {
+        "token": "3",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          51
+        ]
+      },
+      {
+        "token": "+",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          43
+        ]
+      },
+      {
+        "token": "%",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          37
+        ]
+      },
+      {
+        "token": "1",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          49
+        ]
+      },
+      {
+        "token": "-",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          45
+        ]
+      },
+      {
+        "token": ")",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          41
+        ]
+      },
+      {
+        "token": "4",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          52
+        ]
+      },
+      {
+        "token": "\"",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          34
+        ]
+      },
+      {
+        "token": ",",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          44
+        ]
+      },
+      {
+        "token": "&",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          38
+        ]
+      },
+      {
+        "token": "0",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          48
+        ]
+      },
+      {
+        "token": ".",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          46
+        ]
+      },
+      {
+        "token": "(",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          40
+        ]
+      },
+      {
+        "token": "2",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          50
+        ]
+      },
+      {
+        "token": "$",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          36
+        ]
+      },
+      {
+        "token": "*",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          42
+        ]
+      },
+      {
+        "token": "!",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          33
+        ]
+      },
+      {
+        "token": "#",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          35
+        ]
+      },
+      {
+        "token": "'",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          39
+        ]
+      },
+      {
+        "token": "/",
+        "logprob": -11.929455757141113,
+        "bytes": [
+          47
+        ]
+      }
+    ]
+  }
+]
+ khaoulamerah@khaoula  ~/Desktop/Rag-chatbot/ecommerce-rag-chatbot   fix/ollama-reranker-integration 

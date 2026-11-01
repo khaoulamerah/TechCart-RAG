@@ -4,9 +4,7 @@ import logging
 import threading
 from typing import Any
 
-from backend.rag.reranker.base import Reranker
-
-logger = logging.getLogger("techcart.reranker.qwen3_transformers")
+logger = logging.getLogger("techcart.reranker.service_model")
 
 DEFAULT_INSTRUCTION = (
     "Given a web search query, retrieve relevant passages that answer the query"
@@ -27,19 +25,7 @@ ASSISTANT_SUFFIX = (
 )
 
 
-class Qwen3TransformersReranker(Reranker):
-    """Run Qwen3-Reranker with Transformers and score yes/no logits directly.
-
-    Unlike the previous Ollama adapter, this class does not generate a text
-    response and does not depend on Ollama returning log-probabilities. It
-    runs a forward pass and computes softmax over the model logits for the
-    ``no`` and ``yes`` tokens, following the official Qwen3-Reranker recipe.
-
-    The default device is ``auto``: CUDA is used only when PyTorch reports it
-    is available; otherwise inference runs on CPU. CPU inference is slower but
-    does not require an NVIDIA GPU.
-    """
-
+class Qwen3RerankerModel:
     def __init__(
         self,
         model_name: str = "Qwen/Qwen3-Reranker-0.6B",
@@ -75,6 +61,11 @@ class Qwen3TransformersReranker(Reranker):
         self._token_false_id: int | None = None
         self._load_lock = threading.Lock()
         self._inference_lock = threading.Lock()
+
+    @property
+    def is_ready(self) -> bool:
+        """Return whether both tokenizer and model finished loading."""
+        return self._model is not None and self._tokenizer is not None
 
     def _ensure_model_loaded(self) -> None:
         """Load the tokenizer and model once, on first use."""

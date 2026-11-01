@@ -1,0 +1,142 @@
+                     DATA
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+        RAW       STRUCTURED   SEMI-STRUCTURED
+        CSV          JSON          Markdown
+          │           │              │
+          └───────────┼──────────────┘
+                      ▼
+               DATA PIPELINE
+                      │
+                      ▼
+              CLEAN / VALIDATE
+                      │
+                      ▼
+                DOCUMENTS
+                      │
+                      ▼
+                  CHUNKS
+                      │
+                      ▼
+                EMBEDDINGS
+                      │
+                      ▼
+                  QDRANT
+
+
+
+###########################
+ Pipeline 1 — Product data
+
+ CSV
+ ↓
+Load
+ ↓
+Clean
+ ↓
+Validate
+ ↓
+Derive
+ ↓
+Save
+
+ For:
+All_GPUs.csv
+amd-cpus.csv
+Intel_CPUs.csv
+
+
+Pipeline 2 — Knowledge documents
+
+Markdown
+ ↓
+Load
+ ↓
+Clean
+ ↓
+Validate
+ ↓
+Document
+ ↓
+Chunk
+ ↓
+Embedding
+ ↓
+Qdrant
+
+
+For : markdwon files ..
+
+
+#####################################
+
+
+              SAME CHUNKS
+                  │
+       ┌──────────┼──────────┐
+       ↓          ↓          ↓
+    Model A    Model B    Model C
+       │          │          │
+       ↓          ↓          ↓
+   Evaluate    Evaluate    Evaluate
+       │          │          │
+       └──────────┼──────────┘
+                  ↓
+             Best model
+                  ↓
+             Production
+                  ↓
+               Qdrant
+
+#######################################
+
+Markdown files
+     ↓
+LoadStage
+     ↓
+CleanStage
+     ↓
+ValidateStage
+     ↓
+DocumentStage
+     ↓
+ChunkStage
+     ↓
+Embedding evaluation
+     ↓
+Choose model
+     ↓
+Generate embeddings
+     ↓
+Qdrant
+
+#########################################
+
+Pipeline
+   │
+   ├── LoadStage
+   ├── CleanStage
+   │      └── Strategy Pattern
+   ├── ValidateStage
+   │      └── Strategy Pattern
+   ├── DocumentStage
+   │      └── Factory Pattern?  ← maybe later
+   ├── ChunkStage
+   │      └── Strategy Pattern
+   ├── EmbeddingStage
+   │      └── Strategy Pattern
+   └── QdrantStage
+
+#################################
+
+What is the Strategy Pattern
+The basic idea is:
+
+Define different algorithms separately, then allow another object to choose which algorithm to use.
+
+Pipeline = sequence of stages
+
+Strategy = interchangeable algorithm inside a stage
+
+########################

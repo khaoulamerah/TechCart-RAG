@@ -1,0 +1,49 @@
+# Step 2: Run the command on ONE line
+
+docker exec -it techcart_mongodb mongosh -u techcart_user -p techcart_secret_2024 --authenticationDatabase admin
+
+########Step 3: Verify you're authenticated
+You should see:
+test>
+
+
+Now run
+db.runCommand({connectionStatus:1})
+
+
+
+#####Step 4: Show databases
+show dbs
+
+###### Step 5: Switch to your database
+use techcart
+
+####### Step 6: List collections
+show collections
+
+
+####### Step 7: Display all documents
+db.conversations.find().pretty()
+
+
+#######################################
+
+curl -N -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Explique le RAG en 2 phrases."}'
+
+######################################
+
+API
+ ↓
+Service
+ ↓
+Repository
+ ↓
+MongoDB
+
+### et non :
+
+API
+ ↓
+MongoDB

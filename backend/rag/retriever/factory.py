@@ -2,7 +2,7 @@ from functools import lru_cache
 
 from backend.config.settings import settings
 from backend.rag.embeddings.embedder import OllamaEmbeddingStrategy
-from backend.rag.reranker.qwen3_transformers import Qwen3TransformersReranker
+from backend.rag.reranker.http_client import HttpReranker
 from backend.rag.retriever.retriever import Retriever
 from backend.rag.vector_store.qdrant import QdrantVectorStore
 
@@ -24,18 +24,16 @@ def get_retriever() -> Retriever:
     reranker = None
     if settings.RERANKER_ENABLED:
         provider = settings.RERANKER_PROVIDER.strip().lower()
-        if provider != "transformers":
+        if provider != "http":
             raise ValueError(
                 f"Unsupported RERANKER_PROVIDER '{settings.RERANKER_PROVIDER}'. "
-                "This version supports 'transformers'."
+                "This version supports 'http'. Set RERANKER_PROVIDER=http."
             )
 
-        reranker = Qwen3TransformersReranker(
+        reranker = HttpReranker(
+            base_url=settings.RERANKER_BASE_URL,
             model_name=settings.RERANKER_MODEL,
-            device=settings.RERANKER_DEVICE,
-            max_length=settings.RERANKER_MAX_LENGTH,
-            instruction=settings.RERANKER_INSTRUCTION,
-            max_document_chars=settings.RERANKER_MAX_DOCUMENT_CHARS,
+            timeout_seconds=settings.RERANKER_TIMEOUT_SECONDS,
         )
 
     return Retriever(

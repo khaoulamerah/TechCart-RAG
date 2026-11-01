@@ -1,6 +1,5 @@
 ## Apply and restart
 
-From the project root, after replacing the files from this archive:
 
 ```bash
 docker compose config --quiet

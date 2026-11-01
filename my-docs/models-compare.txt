@@ -1,0 +1,222 @@
+
+
+benchmark_embeddings.py :How long does the model take to convert text → vector?
+benchmark_retrieval.py  : How long does Qdrant take to search the vectors?
+
+#####################################################
+
+                 ┌─────────────────────┐
+                 │  Embedding Model    │
+                 └──────────┬──────────┘
+                            │
+             ┌──────────────┴──────────────┐
+             ↓                             ↓
+      Embedding Quality              Embedding Speed
+      Recall@1 / Recall@5             benchmark_embeddings.py
+      MRR@5
+             │
+             ↓
+        Qdrant indexing
+             │
+             ↓
+      Retrieval Speed
+      benchmark_retrieval.py
+
+So your final comparison should combine:
+
+QUALITY
+├── Recall@1
+├── Recall@5
+└── MRR@5
+
+SPEED
+├── Embedding latency
+└── Retrieval latency
+
+#################################################
+
+UI
+ ↓
+FastAPI
+ ↓
+BGE-M3 query embedding
+ ↓
+Qdrant: techcart_bge_m3
+ ↓
+Top-K chunks
+ ↓
+Prompt + context
+ ↓
+Mistral
+ ↓
+SSE
+ ↓
+UI
+
+###########################################
+
+        Execute the complete RAG flow.
+
+        User question
+            ↓
+        BGE-M3
+            ↓
+        Qdrant
+            ↓
+        Context
+            ↓
+        Prompt
+            ↓
+        Mistral
+            ↓
+        Streaming answer
+
+##########################################
+Retriever
+
+Il demande :
+
+"Quels documents pourraient être pertinents ?"
+
+Reranker
+
+Il demande :
+
+"Parmi ces documents, lesquels répondent réellement le mieux à cette question ?"
+
+
+how reranking works :
+                     Question
+                        +
+             Document 1
+                        ↓
+                     Model
+                        ↓
+                    Score 1
+
+                     Question
+                        +
+             Document 2
+                        ↓
+                     Model
+                        ↓
+                    Score 2
+
+                     Question
+                        +
+             Document 3
+                        ↓
+                     Model
+                        ↓
+                    Score 3
+
+Ensuite on trie les scores
+
+Supposons :
+Document 1 → 0.7165
+Document 2 → 0.9635
+Document 3 → 0.0255
+
+Avant reranking :
+1. Document 1
+2. Document 2
+3. Document 3
+
+Après :
+1. Document 2 → 0.9635
+2. Document 1 → 0.7165
+3. Document 3 → 0.0255
+
+La phrase à retenir:
+BGE-M3 cherche vite, Qdrant récupère les candidats, le reranker les réordonne précisément, puis Mistral utilise les meilleurs documents pour générer la réponse.
+
+
+
+                         USER
+                           │
+                           ▼
+                        FastAPI
+                           │
+                           ▼
+                     Query Processing
+                           │
+                           ▼
+                  ┌──────────────────┐
+                  │   Hybrid Search  │
+                  │                  │
+                  │ BGE-M3 + BM25    │
+                  └────────┬─────────┘
+                           │
+                        Top-20
+                           │
+                           ▼
+                  ┌──────────────────┐
+                  │    Reranker      │
+                  │ BGE-reranker-m3  │
+                  └────────┬─────────┘
+                           │
+                         Top-5
+                           │
+                           ▼
+                  ┌──────────────────┐
+                  │    RAG Prompt    │
+                  └────────┬─────────┘
+                           │
+                           ▼
+                  ┌──────────────────┐
+                  │   LLM Service    │
+                  │     Ollama       │
+                  │     Mistral      │
+                  └────────┬─────────┘
+                           │
+                           ▼
+                         Answer
+
+#########################################
+
+LLM-as-a-Judge :
+                         ┌──────────────┐
+                         │   Question   │
+                         └──────┬───────┘
+                                ↓
+                         BGE-M3 + Qdrant
+                                ↓
+                              Top-K
+                                ↓
+                           RAG Prompt
+                                ↓
+                             Mistral
+                                ↓
+                             Answer
+                                │
+                    ┌───────────┴───────────┐
+                    ↓                       ↓
+             User sees answer        LLM-as-a-Judge
+                                            ↓
+                                    Evaluation scores
+
+########################################################
+
+Question
+   ↓
+BGE-M3
+   ↓
+Qdrant
+   ↓
+Top 20 candidates          ← retrieval
+   ↓
+BGE-Reranker-v2-m3
+   ↓
+Top 5 documents            ← reranking
+   ↓
+RAG Prompt
+   ↓
+Mistral
+   ↓
+SSE
+   ↓
+UI
+
+#####################################################
+Hybrid-Search :
+Le problème est que les embeddings sont très bons pour comprendre le sens, mais peuvent être moins bons lorsqu'une question contient un terme très précis

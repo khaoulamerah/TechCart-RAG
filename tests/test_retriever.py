@@ -1,9 +1,7 @@
 from backend.rag.embeddings.embedder import (
     OllamaEmbeddingStrategy,
 )
-from backend.rag.reranker.ollama_qwen import (
-    OllamaQwenReranker,
-)
+from backend.rag.reranker.http_client import HttpReranker
 from backend.rag.vector_store.qdrant import (
     QdrantVectorStore,
 )
@@ -23,7 +21,7 @@ TOP_K = 5
 
 
 def main() -> None:
-    """Test BGE-M3 retrieval with the Ollama Qwen3 reranker."""
+    """Test BGE-M3 retrieval with the dedicated HTTP Qwen3 reranker service."""
 
     print()
     print("=" * 80)
@@ -41,9 +39,10 @@ def main() -> None:
         collection_name=COLLECTION_NAME,
     )
 
-    reranker = OllamaQwenReranker(
-        model_name="dengcao/Qwen3-Reranker-0.6B:Q8_0",
-        base_url=OLLAMA_BASE_URL,
+    reranker = HttpReranker(
+        model_name="Qwen/Qwen3-Reranker-0.6B",
+        base_url="http://localhost:8001",
+        timeout_seconds=60,
     )
 
     retriever = Retriever(

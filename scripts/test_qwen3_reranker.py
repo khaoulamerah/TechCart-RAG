@@ -1,57 +1,72 @@
-"""Download/load Qwen3-Reranker and run a small local ranking smoke test.
+"""Smoke-test the dedicated Qwen3 reranker HTTP service.
 
-Run inside Docker after rebuilding:
+Run after starting the Compose stack:
     docker compose exec backend python -m scripts.test_qwen3_reranker
 """
 
+import sys
+
+import httpx
+
 from backend.config.settings import settings
-from backend.rag.reranker.qwen3_transformers import Qwen3TransformersReranker
+from backend.rag.reranker.http_client import HttpReranker
 
 
 def main() -> None:
-    reranker = Qwen3TransformersReranker(
-        model_name=settings.RERANKER_MODEL,
-        device=settings.RERANKER_DEVICE,
-        max_length=settings.RERANKER_MAX_LENGTH,
-        instruction=settings.RERANKER_INSTRUCTION,
-        max_document_chars=settings.RERANKER_MAX_DOCUMENT_CHARS,
-    )
+    base_url = settings.RERANKER_BASE_URL.rstrip("/")
+    try:
+        response = httpx.get(f"{base_url}/health/ready", timeout=5.0)
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        print(
+            "RERANKER NOT READY: the service or model is not ready yet. "
+            "Chat will continue with vector ranking while it retries."
+        )
+        print(f"Details: {exc}")
+        sys.exit(1)
 
-    question = "What is the store return policy?"
     candidates = [
         {
-            "id": "irrelevant-gpu",
+            "id": "gpu-guide",
+            "score": 0.91,
             "payload": {
                 "text": "This document describes graphics card specifications and GPU memory."
             },
         },
         {
-            "id": "relevant-returns",
+            "id": "return-policy",
+            "score": 0.72,
             "payload": {
                 "text": "Customers can return eligible products according to the store's return policy."
             },
         },
     ]
 
-    reranker.warm_up()
-    results = reranker.rerank(question, candidates, top_k=len(candidates))
+    reranker = HttpReranker(
+        base_url=base_url,
+        model_name=settings.RERANKER_MODEL,
+        timeout_seconds=settings.RERANKER_TIMEOUT_SECONDS,
+    )
+    results = reranker.rerank(
+        "What is the store return policy?",
+        candidates,
+        top_k=len(candidates),
+    )
 
-    print("QWEN3 TRANSFORMERS RERANKER OK")
+    print("QWEN3 HTTP RERANKER SERVICE OK")
     print("Model:", settings.RERANKER_MODEL)
-    print("Device preference:", settings.RERANKER_DEVICE)
-    print("Ranked results:")
     for index, result in enumerate(results, start=1):
         payload = result.get("payload") or {}
         print(
             f"{index}. id={result.get('id')} "
-            f"score={result.get('rerank_score', 0.0):.6f} "
+            f"rerank_score={result.get('rerank_score')} "
             f"text={str(payload.get('text', ''))[:100]!r}"
         )
 
-    if results and results[0].get("id") != "relevant-returns":
+    if results and results[0].get("id") != "return-policy":
         print(
-            "WARNING: the relevance example did not rank first. "
-            "Inspect model output and prompt before enabling globally."
+            "WARNING: the expected return-policy passage was not ranked first. "
+            "Check model configuration and the service logs."
         )
 
 

@@ -4,11 +4,11 @@ from typing import Any
 
 import pytest
 
-from backend.rag.reranker.qwen3_transformers import Qwen3TransformersReranker
+from services.reranker.model import Qwen3RerankerModel
 
 
-def make_reranker() -> Qwen3TransformersReranker:
-    return Qwen3TransformersReranker(
+def make_reranker() -> Qwen3RerankerModel:
+    return Qwen3RerankerModel(
         model_name="Qwen/Qwen3-Reranker-0.6B",
         device="cpu",
         max_length=2048,

@@ -1,0 +1,219 @@
+
+User
+ ↓
+FastAPI
+ ↓
+retrieve relevant context
+ ↓
+Prompt Pattern
+ ↓
+Ollama/Mistral
+ ↓
+generated answer
+ ↓
+save conversation
+ ↓
+Frontend
+######################################
+
+
+
+                 ┌───────────────┐
+                 │ User question │
+                 └───────┬───────┘
+                         ↓
+                 ┌───────────────┐
+                 │   FastAPI     │
+                 └───────┬───────┘
+                         ↓
+                 ┌───────────────┐
+                 │ Vector Search │
+                 │   Qdrant      │
+                 └───────┬───────┘
+                         ↓
+                 Relevant documents
+                         ↓
+                 ┌───────────────┐
+                 │ Prompt (that we
+                   send to the   |
+                   LLM.)         │
+                 │ + Context     │
+                 │ + Question    │
+                 └───────┬───────┘
+                         ↓
+                 ┌───────────────┐
+                 │ Ollama/Mistral│
+                 └───────┬───────┘
+                         ↓
+                    Final answer
+
+##########################################
+
+MongoDB = memory/history (Stores the conversation history)
+Qdrant   = knowledge retrieval(Stores/searches vectors.) "Given this question, find information that is semantically relevant."
+Mistral  = reasoning/generation
+Ollama   = runs Mistral locally
+FastAPI  = orchestrates everything
+Frontend = interface for the user
+
+##########################################
+
+11. Then connect it to your FastAPI endpoint
+
+Instead of your previous testing endpoint simply doing something like:
+
+POST /conversations
+
+you eventually want something closer to:
+
+POST /conversations/{conversation_id}/messages
+
+The flow:
+
+POST /conversations/123/messages
+
+{
+    "message": "What laptops do you have?"
+}
+
+↓
+
+FastAPI
+
+↓
+
+save user message in MongoDB
+
+↓
+
+retrieve relevant information from Qdrant
+
+↓
+
+build prompt
+
+↓
+
+send prompt to Mistral
+
+↓
+
+receive answer
+
+↓
+
+save assistant message in MongoDB
+
+↓
+
+return answer
+
+################################
+
+
+                    USER
+                     │
+                     ▼
+                ┌─────────┐
+                │Frontend │
+                └────┬────┘
+                     │
+                     │ POST message
+                     ▼
+                ┌─────────┐
+                │ FastAPI │
+                └────┬────┘
+                     │
+             ┌───────┴────────┐
+             │                │
+             ▼                ▼
+        ┌─────────┐      ┌─────────┐
+        │ MongoDB │      │ Qdrant  │
+        │ History │      │ Search  │
+        └─────────┘      └────┬────┘
+                              │
+                              │ relevant context
+                              ▼
+                       ┌─────────────┐
+                       │Prompt       │
+                       │Pattern      │
+                       └──────┬──────┘
+                              │
+                              ▼
+                       ┌─────────────┐
+                       │   Ollama    │
+                       │   Mistral   │
+                       └──────┬──────┘
+                              │
+                              │ generated answer
+                              ▼
+                       ┌─────────────┐
+                       │   FastAPI   │
+                       └──────┬──────┘
+                              │
+                              ▼
+                          Frontend
+                              │
+                              ▼
+                            USER
+
+
+
+
+##################################################
+
+User question
+      │
+      ▼
+Question processing
+      │
+      ▼
+Embedding
+      │
+      ▼
+Qdrant search
+      │
+      ▼
+Relevant products/documents
+      │
+      ▼
+Prompt
+      │
+      ▼
+Mistral
+      │
+      ▼
+Streaming response
+      │
+      ▼
+Frontend
+
+
+################################################################
+
+
+                     DATA
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+        RAW       STRUCTURED   SEMI-STRUCTURED
+        CSV          JSON          Markdown
+          │           │              │
+          └───────────┼──────────────┘
+                      ▼
+               DATA PIPELINE
+                      │
+                      ▼
+              CLEAN / VALIDATE
+                      │
+                      ▼
+                DOCUMENTS
+                      │
+                      ▼
+                  CHUNKS
+                      │
+                      ▼
+                EMBEDDINGS
+                      │
+                      ▼
+                  QDRANT

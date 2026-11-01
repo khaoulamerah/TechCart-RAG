@@ -42,7 +42,7 @@ ensure_model() {
 }
 
 # Ollama now serves only the chat LLM and the embedding model.
-# Qwen3-Reranker is loaded separately by Transformers in the backend.
+# Qwen3-Reranker is loaded by the separate reranker service.
 ensure_model "${LLM_MODEL}"
 ensure_model "${EMBEDDING_MODEL}"
 

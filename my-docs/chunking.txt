@@ -1,0 +1,34 @@
+
+Document
+├── id
+├── content
+└── metadata
+
+######################
+
+Document
+   │
+   ├── Chunk 1
+   ├── Chunk 2
+   ├── Chunk 3
+   └── Chunk 4
+
+###################
+
+Le Chunk Overlap est la partie de texte qui est répétée entre deux chunks consécutifs.
+
+C'est important dans un système RAG, parce qu'on veut éviter de couper une information importante exactement à la frontière entre deux chunks.
+
+###############################
+Le semantic chunking essaie plutôt de faire :
+Texte
+ ↓
+phrases / unités de texte
+ ↓
+représentation vectorielle
+ ↓
+comparaison de similarité
+ ↓
+détection des changements de sujet
+ ↓
+chunks sémantiquement cohérents
